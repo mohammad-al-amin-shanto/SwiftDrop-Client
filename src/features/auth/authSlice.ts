@@ -1,22 +1,25 @@
 // src/features/auth/authSlice.ts
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
+import type { PayloadAction } from "@reduxjs/toolkit";
 import {
   getToken,
   getUser,
-  saveToken,
-  saveUser,
-  clearAuth,
+  setToken,
+  setUser,
+  clearToken,
+  clearUser,
 } from "../../lib/storage";
+import type { User } from "../../types";
 
 interface AuthState {
   token: string | null;
-  user: any | null;
+  user: User | null;
   loading: boolean;
 }
 
 const initialState: AuthState = {
   token: getToken(),
-  user: getUser(),
+  user: (getUser() as User) ?? null,
   loading: false,
 };
 
@@ -24,16 +27,17 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setAuth(state, action: PayloadAction<{ token: string; user: any }>) {
+    setAuth(state, action: PayloadAction<{ token: string; user: User }>) {
       state.token = action.payload.token;
       state.user = action.payload.user;
-      saveToken(action.payload.token);
-      saveUser(action.payload.user);
+      setToken(action.payload.token);
+      setUser(action.payload.user);
     },
     clearAuthState(state) {
       state.token = null;
       state.user = null;
-      clearAuth();
+      clearToken();
+      clearUser();
     },
     setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
