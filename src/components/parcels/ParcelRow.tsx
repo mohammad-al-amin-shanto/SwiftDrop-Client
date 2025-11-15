@@ -1,3 +1,4 @@
+// src/components/parcels/ParcelRow.tsx
 import React from "react";
 import type { Parcel, User } from "../../types";
 import { format } from "date-fns";
@@ -6,21 +7,41 @@ type Props = {
   parcel: Parcel;
   onView: (p: Parcel) => void;
   onCancel: (id: string) => void;
+  onConfirm?: (id: string) => void;
+  showConfirm?: boolean;
 };
 
-/** Narrow run-time check to see if receiver is an object shaped like a User */
+/** runtime narrow check for a receiver-like object */
 function isReceiverObject(x: unknown): x is Partial<User> {
-  return typeof x === "object" && x !== null;
+  return (
+    typeof x === "object" &&
+    x !== null &&
+    ("name" in (x as object) || "phone" in (x as object))
+  );
 }
 
-export const ParcelRow: React.FC<Props> = ({ parcel, onView, onCancel }) => {
-  // latest status: prefer last log, fallback to parcel.status
+export const ParcelRow: React.FC<Props> = ({
+  parcel,
+  onView,
+  onCancel,
+  onConfirm,
+  showConfirm = false,
+}) => {
+  // prefer last log entry (if logs exist) else fallback to status
   const latestStatus =
-    parcel.logs && parcel.logs.length > 0
-      ? parcel.logs[parcel.logs.length - 1].status
+    Array.isArray(parcel.logs) && parcel.logs.length > 0
+      ? parcel.logs[parcel.logs.length - 1].status ?? parcel.status
       : parcel.status;
 
-  // receiver may be a string (name) or a User object
+  const canCancel =
+    parcel.status !== "dispatched" &&
+    parcel.status !== "delivered" &&
+    parcel.status !== "cancelled";
+
+  const canConfirm =
+    parcel.status !== "delivered" && parcel.status !== "cancelled";
+
+  // handle receiver which may be string or object
   const receiverName =
     typeof parcel.receiver === "string"
       ? parcel.receiver
@@ -35,21 +56,27 @@ export const ParcelRow: React.FC<Props> = ({ parcel, onView, onCancel }) => {
       ? parcel.receiver.phone ?? "-"
       : "-";
 
-  const weightDisplay = parcel.weight ? `${parcel.weight} kg` : "-";
+  const weightDisplay =
+    typeof parcel.weight === "number" ? `${parcel.weight} kg` : "-";
   const costDisplay =
-    typeof parcel.cost === "number" && !Number.isNaN(parcel.cost)
-      ? `৳ ${parcel.cost}`
-      : "-";
+    typeof parcel.cost === "number" ? `৳ ${parcel.cost}` : "-";
 
-  const createdAtDisplay = parcel.createdAt
-    ? (() => {
-        try {
-          return format(new Date(parcel.createdAt), "dd MMM yyyy");
-        } catch {
-          return "-";
-        }
-      })()
-    : "-";
+  const createdAtDisplay = (() => {
+    const raw = parcel.createdAt;
+    if (!raw) return "-";
+    try {
+      if (
+        typeof raw === "string" ||
+        typeof raw === "number" ||
+        (raw as unknown) instanceof Date
+      ) {
+        return format(new Date(raw as string | number | Date), "dd MMM yyyy");
+      }
+    } catch {
+      /* ignore */
+    }
+    return "-";
+  })();
 
   return (
     <tr className="border-b">
@@ -77,9 +104,16 @@ export const ParcelRow: React.FC<Props> = ({ parcel, onView, onCancel }) => {
             View
           </button>
 
-          {parcel.status !== "dispatched" &&
-          parcel.status !== "delivered" &&
-          parcel.status !== "cancelled" ? (
+          {canConfirm && (showConfirm || !!onConfirm) ? (
+            <button
+              onClick={() => onConfirm?.(parcel._id)}
+              className="px-2 py-1 rounded bg-green-500 text-white text-sm hover:bg-green-600"
+            >
+              Confirm
+            </button>
+          ) : null}
+
+          {canCancel ? (
             <button
               onClick={() => onCancel(parcel._id)}
               className="px-2 py-1 rounded bg-red-500 text-white text-sm hover:bg-red-600"

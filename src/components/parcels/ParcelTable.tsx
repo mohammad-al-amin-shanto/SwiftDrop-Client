@@ -3,13 +3,14 @@ import React, { useMemo, useState, useEffect } from "react";
 import {
   useListParcelsQuery,
   useCancelParcelMutation,
+  useUpdateParcelStatusMutation,
 } from "../../api/parcelsApi";
 import ParcelRow from "./ParcelRow";
 import StatusTimeline from "./StatusTimeline";
 import type { Parcel, User } from "../../types";
 import { toast } from "react-toastify";
 
-/** local debounce hook */
+/** Local debounce hook (must start with "use" to satisfy hooks lint) */
 function useDebounce<T>(value: T, delay = 400) {
   const [debounced, setDebounced] = useState<T>(value);
   useEffect(() => {
@@ -19,48 +20,38 @@ function useDebounce<T>(value: T, delay = 400) {
   return debounced;
 }
 
-/** safe error message extractor (no `any`) */
+/** Safe error message extractor (no `any`) */
 function getErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;
-
   if (typeof err === "object" && err !== null) {
     const obj = err as Record<string, unknown>;
-
-    // look for data?.message
     const data = obj["data"];
     if (typeof data === "object" && data !== null) {
       const msg = (data as Record<string, unknown>)["message"];
       if (typeof msg === "string" && msg.trim()) return msg;
     }
-
-    // look for message
     const message = obj["message"];
     if (typeof message === "string" && message.trim()) return message;
   }
-
   return "An error occurred";
 }
 
-/** helpers to read name/phone/address from sender/receiver which can be string or User */
+/** Helpers to read person fields (User or string) */
 function getPersonName(p: User | string | undefined) {
   if (!p) return "-";
   return typeof p === "string" ? p : p.name ?? "-";
 }
-
 function getPersonPhone(p: User | string | undefined) {
   if (!p) return "-";
   if (typeof p === "string") return "-";
-  // cast via unknown first to satisfy TS (safe)
   const obj = p as unknown as Record<string, unknown>;
   const phone = obj["phone"];
   return typeof phone === "string" ? phone : "-";
 }
-
 function getPersonAddress(p: User | string | undefined) {
   if (!p) return "-";
   if (typeof p === "string") return "-";
-  // cast via unknown first to satisfy TS (safe)
   const obj = p as unknown as Record<string, unknown>;
   const addr = obj["address"];
   return typeof addr === "string" ? addr : "-";
@@ -70,12 +61,16 @@ type Props = {
   initialPage?: number;
   initialLimit?: number;
   senderId?: string;
+  receiverId?: string;
+  showConfirmAll?: boolean;
 };
 
 export const ParcelTable: React.FC<Props> = ({
   initialPage = 1,
   initialLimit = 10,
   senderId,
+  receiverId,
+  showConfirmAll = false,
 }) => {
   const [page, setPage] = useState<number>(initialPage);
   const [limit, setLimit] = useState<number>(initialLimit);
@@ -92,16 +87,18 @@ export const ParcelTable: React.FC<Props> = ({
     if (debouncedSearch) p.search = debouncedSearch;
     if (status) p.status = status;
     if (senderId) p.senderId = senderId;
+    if (receiverId) p.receiverId = receiverId;
     if (dateRange && dateRange !== "all") p.dateRange = dateRange;
     return p;
-  }, [page, limit, debouncedSearch, status, dateRange, senderId]);
+  }, [page, limit, debouncedSearch, status, dateRange, senderId, receiverId]);
 
   const { data, isLoading, isFetching, isError, error, refetch } =
     useListParcelsQuery(params);
 
   const [cancelParcel, { isLoading: isCancelling }] = useCancelParcelMutation();
+  const [updateStatus] = useUpdateParcelStatusMutation();
 
-  // show a one-time toast for loading error (keeps variable used, no unused warnings)
+  // show a one-time toast for load error
   useEffect(() => {
     if (isError) {
       const msg = getErrorMessage(error);
@@ -111,7 +108,7 @@ export const ParcelTable: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isError]);
 
-  // log cancel state (keeps variable "used")
+  // keep cancelling state used (avoids unused var warning)
   useEffect(() => {
     if (isCancelling) console.debug("A cancel operation is in progress...");
   }, [isCancelling]);
@@ -120,6 +117,7 @@ export const ParcelTable: React.FC<Props> = ({
   const parcels = data?.data ?? [];
 
   const handleView = (p: Parcel) => {
+    // dispatch a typed CustomEvent
     window.dispatchEvent(new CustomEvent<Parcel>("parcel:view", { detail: p }));
   };
 
@@ -130,8 +128,22 @@ export const ParcelTable: React.FC<Props> = ({
       toast.success("Parcel cancelled");
       refetch();
     } catch (err: unknown) {
-      const msg = getErrorMessage(err);
-      toast.error(msg);
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  const handleConfirm = async (id: string) => {
+    if (!confirm("Confirm delivery of this parcel?")) return;
+    try {
+      await updateStatus({
+        id,
+        status: "delivered",
+        note: "Confirmed via UI",
+      }).unwrap();
+      toast.success("Parcel confirmed delivered");
+      refetch();
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     }
   };
 
@@ -270,6 +282,8 @@ export const ParcelTable: React.FC<Props> = ({
                   parcel={p}
                   onView={handleView}
                   onCancel={handleCancel}
+                  onConfirm={handleConfirm}
+                  showConfirm={showConfirmAll}
                 />
               ))
             )}
