@@ -1,15 +1,33 @@
+// src/components/auth/ProfileForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";
 import { useUpdateUserMutation } from "../../api/usersApi";
 import { setAuth } from "../../features/auth/authSlice";
-import { saveUser } from "../../lib/storage";
+import { setUser } from "../../lib/storage";
 import { toast } from "react-toastify";
 
 type FormValues = {
   name: string;
   email: string;
 };
+
+/** Safe extractor for error messages (no `any`) */
+function getErrorMessage(err: unknown): string {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (typeof err === "object" && err !== null) {
+    const obj = err as Record<string, unknown>;
+    const data = obj["data"];
+    if (typeof data === "object" && data !== null) {
+      const msg = (data as Record<string, unknown>)["message"];
+      if (typeof msg === "string" && msg.trim()) return msg;
+    }
+    const message = obj["message"];
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return "An error occurred";
+}
 
 const ProfileForm: React.FC = () => {
   const user = useAppSelector((s) => s.auth.user);
@@ -29,23 +47,32 @@ const ProfileForm: React.FC = () => {
   }, [user, reset]);
 
   const onSubmit = async (payload: FormValues) => {
+    if (!user) {
+      toast.error("No user found");
+      return;
+    }
+
     try {
       const updated = await updateUser({
-        id: user!._id,
+        id: user._id,
         body: payload,
       }).unwrap();
+
+      // preserve token from storage (if present) — ensure it's a string
+      const token = localStorage.getItem("swiftdrop_token") || "";
+
+      // update redux auth slice and local storage user
       dispatch(
         setAuth({
-          token: (await Promise.resolve(
-            localStorage.getItem("swiftdrop_token") || ""
-          )) as any,
+          token,
           user: updated,
         })
-      ); // setAuth expects token + user; token preserved
-      saveUser(updated);
+      );
+
+      setUser(updated);
       toast.success("Profile updated");
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Update failed");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     }
   };
 

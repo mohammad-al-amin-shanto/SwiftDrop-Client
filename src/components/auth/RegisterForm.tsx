@@ -1,9 +1,10 @@
+// src/components/auth/RegisterForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useRegisterMutation } from "../../api/authApi";
 import { useAppDispatch } from "../../app/hooks";
 import { setAuth } from "../../features/auth/authSlice";
-import { saveToken, saveUser } from "../../lib/storage";
+import { setToken, setUser } from "../../lib/storage";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 
@@ -14,6 +15,23 @@ type FormValues = {
   role: "sender" | "receiver";
 };
 
+/** Safe error extractor (no `any`) */
+function getErrorMessage(err: unknown): string {
+  if (!err) return "Unknown error";
+  if (typeof err === "string") return err;
+  if (typeof err === "object" && err !== null) {
+    const obj = err as Record<string, unknown>;
+    const data = obj["data"];
+    if (typeof data === "object" && data !== null) {
+      const msg = (data as Record<string, unknown>)["message"];
+      if (typeof msg === "string" && msg.trim()) return msg;
+    }
+    const message = obj["message"];
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return "An error occurred";
+}
+
 const RegisterForm: React.FC = () => {
   const {
     register,
@@ -22,6 +40,7 @@ const RegisterForm: React.FC = () => {
   } = useForm<FormValues>({
     defaultValues: { name: "", email: "", password: "", role: "sender" },
   });
+
   const [registerApi] = useRegisterMutation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -29,14 +48,21 @@ const RegisterForm: React.FC = () => {
   const onSubmit = async (payload: FormValues) => {
     try {
       const res = await registerApi(payload).unwrap(); // expects { token, user }
-      saveToken(res.token);
-      saveUser(res.user);
+
+      // persist token & user using lib/storage helpers
+      setToken(res.token);
+      setUser(res.user);
+
+      // update redux auth slice
       dispatch(setAuth({ token: res.token, user: res.user }));
+
       toast.success("Registered");
-      if (res.user.role === "sender") navigate("/dashboard/sender");
+
+      // redirect based on role
+      if (res.user?.role === "sender") navigate("/dashboard/sender");
       else navigate("/");
-    } catch (err: any) {
-      toast.error(err?.data?.message || "Registration failed");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err));
     }
   };
 
