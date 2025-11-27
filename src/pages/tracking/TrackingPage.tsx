@@ -11,7 +11,6 @@ const TrackingPage: React.FC = () => {
     data: parcel,
     isFetching,
     isError,
-    refetch,
   } = useTrackByTrackingIdQuery(
     { trackingId: submittedId },
     { skip: !submittedId }
@@ -20,7 +19,6 @@ const TrackingPage: React.FC = () => {
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittedId(trackingId.trim());
-    // refetch will get triggered by RTK Query when submittedId changes
   };
 
   return (

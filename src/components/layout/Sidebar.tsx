@@ -2,17 +2,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAppSelector } from "../../app/hooks";
-import { roles } from "../../constants/roles";
 
 type Props = {
   open?: boolean;
   onClose?: () => void;
 };
 
-export const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
+const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
   const user = useAppSelector((s) => s.auth.user);
+  const role = user?.role ?? "guest";
 
-  const items = [
+  const items: Array<{ to: string; label: string; roles: string[] }> = [
     { to: "/dashboard/sender", label: "Sender Dashboard", roles: ["sender"] },
     {
       to: "/dashboard/receiver",
@@ -34,24 +34,39 @@ export const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
 
   return (
     <aside
+      aria-hidden={!open}
       className={`bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 p-4 ${
         open ? "block" : "hidden"
       } w-64`}
     >
-      <div className="mb-6">
-        <div className="text-sm text-gray-500">Welcome</div>
-        <div className="font-semibold">{user?.name ?? "Guest"}</div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="text-sm text-gray-500">Welcome</div>
+          <div className="font-semibold">{user?.name ?? "Guest"}</div>
+        </div>
+
+        {/* small close button so onClose is actually used (useful on mobile) */}
+        {onClose ? (
+          <button
+            onClick={onClose}
+            aria-label="Close sidebar"
+            className="ml-2 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm"
+            title="Close"
+          >
+            ✕
+          </button>
+        ) : null}
       </div>
 
       <nav className="space-y-2">
         {items.map((it) => {
-          const ok = !it.roles || it.roles.includes(user?.role ?? "guest");
-          if (!ok) return null;
+          const allowed = it.roles.includes(role);
+          if (!allowed) return null;
           return (
             <Link
               key={it.to}
               to={it.to}
-              className="block py-2 px-3 rounded hover:bg-slate-100"
+              className="block py-2 px-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               {it.label}
             </Link>

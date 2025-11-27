@@ -1,7 +1,6 @@
 // src/pages/dashboards/ReceiverDashboard.tsx
 import React from "react";
 import ParcelTable from "../../components/parcels/ParcelTable";
-import { useAppSelector } from "../../app/hooks";
 import { useParcelsStatsQuery } from "../../api/parcelsApi";
 // import the chart module safely (works whether it exports default or a named export)
 import * as StatusPieChartModule from "../../components/charts/StatusPieChart";
@@ -16,10 +15,8 @@ type ParcelsStatsShape = {
 
 type ParcelsStats = ParcelsStatsShape | undefined;
 
-// component shape we expect from the chart module
 type StatusPieChartType = React.FC<{ stats?: ParcelsStats; loading: boolean }>;
 
-// pick the chart component if present (default or named), otherwise fallback to a simple placeholder
 const StatusPieChart: StatusPieChartType =
   (
     StatusPieChartModule as unknown as {
@@ -40,10 +37,7 @@ const StatusPieChart: StatusPieChartType =
   ));
 
 const ReceiverDashboard: React.FC = () => {
-  const user = useAppSelector((s) => s.auth.user);
-  // keeping receiverId available if need later; not used now so avoid eslint complaints by not declaring it
-
-  // call with no args because your endpoint was declared with void (matches your RTK Query setup)
+  // call endpoint (your parcelsApi appears to expose a stats endpoint without args)
   const { data: stats, isLoading: statsLoading } = useParcelsStatsQuery();
 
   return (

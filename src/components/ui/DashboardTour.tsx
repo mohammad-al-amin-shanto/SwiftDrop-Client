@@ -41,7 +41,16 @@ const steps = [
       description: "Visual summary of shipments and statuses.",
     },
   },
-];
+] as const;
+
+/**
+ * declare a typed extension on window for the test helper function
+ */
+declare global {
+  interface Window {
+    startSwiftDropTour?: () => void;
+  }
+}
 
 export const DashboardTour: React.FC<{ autostart?: boolean }> = ({
   autostart = true,
@@ -49,28 +58,35 @@ export const DashboardTour: React.FC<{ autostart?: boolean }> = ({
   const driverRef = useRef<InstanceType<typeof Driver> | null>(null);
 
   useEffect(() => {
-    // Avoid multiple instances
     if (driverRef.current) return;
-    const driver = new Driver({
+
+    const options = {
       animate: true,
+
       showProgress: true,
       closeBtnText: "Close",
       doneBtnText: "Done",
       overlayClickNext: false,
       keyboardControl: true,
-    });
+    };
 
-    driver.defineSteps(steps);
+    const driver = new Driver(options);
+
+    // Use Parameters<> to infer the expected type of defineSteps argument
+    type DefineStepsParam = Parameters<
+      InstanceType<typeof Driver>["defineSteps"]
+    >[0];
+    driver.defineSteps(steps as unknown as DefineStepsParam);
+
     driverRef.current = driver;
 
-    // Autostart once if not seen
     if (autostart) {
       const seen = localStorage.getItem(TOUR_KEY);
       if (!seen) {
-        // slight delay to allow UI to mount
         setTimeout(() => {
           try {
             driver.start();
+            localStorage.setItem(TOUR_KEY, "1");
           } catch (e) {
             console.warn("Driver start failed", e);
           }
@@ -78,25 +94,31 @@ export const DashboardTour: React.FC<{ autostart?: boolean }> = ({
       }
     }
 
-    // cleanup
     return () => {
       try {
         driver.reset();
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Driver reset failed", e);
+      }
       driverRef.current = null;
     };
+    // run on mount only
   }, [autostart]);
 
-  // expose programmatic start/reset via window for quick testing (optional)
+  // expose programmatic start for testing
   useEffect(() => {
-    (window as any).startSwiftDropTour = () => {
+    window.startSwiftDropTour = () => {
       const driver = driverRef.current;
       if (!driver) return;
-      driver.start();
-      localStorage.setItem(TOUR_KEY, "1");
+      try {
+        driver.start();
+        localStorage.setItem(TOUR_KEY, "1");
+      } catch (e) {
+        console.warn("startSwiftDropTour failed", e);
+      }
     };
     return () => {
-      delete (window as any).startSwiftDropTour;
+      delete window.startSwiftDropTour;
     };
   }, []);
 

@@ -1,7 +1,6 @@
 import { ToastContainer } from "react-toastify";
 import "./App.css";
 import AppRoutes from "./routes/AppRoutes";
-import "driver.js/dist/driver.min.css";
 
 function App() {
   return (

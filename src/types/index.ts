@@ -1,4 +1,3 @@
-// src/types/index.ts
 export type Role = "admin" | "sender" | "receiver";
 
 export interface User {
