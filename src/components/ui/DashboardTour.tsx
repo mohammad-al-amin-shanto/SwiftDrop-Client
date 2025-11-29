@@ -1,11 +1,29 @@
 // src/components/ui/DashboardTour.tsx
 import React, { useEffect, useRef } from "react";
-import Driver from "driver.js";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 const TOUR_KEY = "swiftdrop_tour_seen";
 
-// Define steps using data-driver-id selectors
-const steps = [
+/** Mirror the shape from .d.ts so TS can infer step types nicely */
+type DriverPopover = {
+  title?: string;
+  description?: string;
+  position?: "top" | "left" | "right" | "bottom" | "auto";
+  open?: boolean;
+};
+
+type DriverStep = {
+  element?: string | HTMLElement;
+  popover?: DriverPopover;
+  stageBackground?: string;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  onClick?: () => void;
+  closeOnClickOutside?: boolean;
+};
+
+const steps: DriverStep[] = [
   {
     element: '[data-driver-id="hero"]',
     popover: {
@@ -41,54 +59,47 @@ const steps = [
       description: "Visual summary of shipments and statuses.",
     },
   },
-] as const;
+];
 
-/**
- * declare a typed extension on window for the test helper function
- */
 declare global {
   interface Window {
     startSwiftDropTour?: () => void;
   }
 }
 
+type DriverInstance = ReturnType<typeof driver>;
+
 export const DashboardTour: React.FC<{ autostart?: boolean }> = ({
   autostart = true,
 }) => {
-  const driverRef = useRef<InstanceType<typeof Driver> | null>(null);
+  const driverRef = useRef<DriverInstance | null>(null);
 
   useEffect(() => {
     if (driverRef.current) return;
 
     const options = {
       animate: true,
-
       showProgress: true,
       closeBtnText: "Close",
       doneBtnText: "Done",
       overlayClickNext: false,
       keyboardControl: true,
+      steps,
     };
 
-    const driver = new Driver(options);
-
-    // Use Parameters<> to infer the expected type of defineSteps argument
-    type DefineStepsParam = Parameters<
-      InstanceType<typeof Driver>["defineSteps"]
-    >[0];
-    driver.defineSteps(steps as unknown as DefineStepsParam);
-
-    driverRef.current = driver;
+    // driver is a factory function, not a constructor
+    const inst = driver(options);
+    driverRef.current = inst;
 
     if (autostart) {
       const seen = localStorage.getItem(TOUR_KEY);
       if (!seen) {
         setTimeout(() => {
           try {
-            driver.start();
+            inst.drive();
             localStorage.setItem(TOUR_KEY, "1");
           } catch (e) {
-            console.warn("Driver start failed", e);
+            console.warn("Driver drive failed", e);
           }
         }, 600);
       }
@@ -96,9 +107,9 @@ export const DashboardTour: React.FC<{ autostart?: boolean }> = ({
 
     return () => {
       try {
-        driver.reset();
+        inst.destroy();
       } catch (e) {
-        console.warn("Driver reset failed", e);
+        console.warn("Driver destroy failed", e);
       }
       driverRef.current = null;
     };
@@ -108,10 +119,10 @@ export const DashboardTour: React.FC<{ autostart?: boolean }> = ({
   // expose programmatic start for testing
   useEffect(() => {
     window.startSwiftDropTour = () => {
-      const driver = driverRef.current;
-      if (!driver) return;
+      const inst = driverRef.current;
+      if (!inst) return;
       try {
-        driver.start();
+        inst.drive();
         localStorage.setItem(TOUR_KEY, "1");
       } catch (e) {
         console.warn("startSwiftDropTour failed", e);
