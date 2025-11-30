@@ -5,7 +5,7 @@ import { AppShell } from "../../components/layout/AppShell";
 
 const RegisterPage: React.FC = () => {
   return (
-    <AppShell>
+    <AppShell hideChrome>
       <div className="max-w-3xl mx-auto py-12">
         <RegisterForm />
       </div>

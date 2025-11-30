@@ -7,6 +7,7 @@ import { setAuth } from "../../features/auth/authSlice";
 import { setToken, setUser } from "../../lib/storage";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import type { User } from "../../types";
 
 type FormValues = {
   email: string;
@@ -30,6 +31,18 @@ function getErrorMessage(err: unknown): string {
   return "An error occurred";
 }
 
+/** Normalize backend role value into one of: admin | sender | receiver | null */
+function normalizeRole(
+  roleLike: unknown
+): "admin" | "sender" | "receiver" | null {
+  if (!roleLike) return null;
+  const s = String(roleLike).trim().toLowerCase();
+  if (s.includes("admin")) return "admin";
+  if (s.includes("sender")) return "sender";
+  if (s.includes("receiver")) return "receiver";
+  return null;
+}
+
 const LoginForm: React.FC = () => {
   const {
     register,
@@ -44,18 +57,46 @@ const LoginForm: React.FC = () => {
   const onSubmit = async (payload: FormValues) => {
     try {
       const res = await login(payload).unwrap(); // expects { token, user }
-      // storage helpers in your codebase are `setToken` / `setUser`
-      setToken(res.token);
-      setUser(res.user);
-      dispatch(setAuth({ token: res.token, user: res.user }));
+
+      // Defensive checks: ensure token and user exist
+      const token = res?.token ?? "";
+      const userCandidate = res?.user ?? null;
+
+      if (!token) {
+        toast.error("Login response missing token.");
+        return;
+      }
+
+      if (!userCandidate) {
+        // store token only (best-effort) and inform user/admin
+        setToken(token);
+        toast.warn(
+          "Logged in but user data missing. Please contact support or try again."
+        );
+        // Navigate to a safe fallback (home) — do not call setAuth with null user
+        navigate("/", { replace: true });
+        return;
+      }
+
+      // At this point TypeScript knows userCandidate is not null
+      const user = userCandidate as User;
+
+      // persist and update redux
+      setToken(token);
+      setUser(user);
+      dispatch(setAuth({ token, user }));
       toast.success("Logged in");
 
-      // redirect based on role
-      const role = res.user?.role;
-      if (role === "admin") navigate("/dashboard/admin");
-      else if (role === "sender") navigate("/dashboard/sender");
-      else if (role === "receiver") navigate("/dashboard/receiver");
-      else navigate("/");
+      console.debug("login response user:", user);
+
+      // robust role handling
+      const role = normalizeRole(user.role);
+      if (role === "admin") navigate("/dashboard/admin", { replace: true });
+      else if (role === "sender")
+        navigate("/dashboard/sender", { replace: true });
+      else if (role === "receiver")
+        navigate("/dashboard/receiver", { replace: true });
+      else navigate("/", { replace: true });
     } catch (err: unknown) {
       const msg = getErrorMessage(err);
       toast.error(msg);

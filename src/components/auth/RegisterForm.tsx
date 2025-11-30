@@ -7,6 +7,7 @@ import { setAuth } from "../../features/auth/authSlice";
 import { setToken, setUser } from "../../lib/storage";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import type { User } from "../../types";
 
 type FormValues = {
   name: string;
@@ -32,6 +33,18 @@ function getErrorMessage(err: unknown): string {
   return "An error occurred";
 }
 
+/** Normalize backend role value into one of: admin | sender | receiver | null */
+function normalizeRole(
+  roleLike: unknown
+): "admin" | "sender" | "receiver" | null {
+  if (!roleLike) return null;
+  const s = String(roleLike).trim().toLowerCase();
+  if (s.includes("admin")) return "admin";
+  if (s.includes("sender")) return "sender";
+  if (s.includes("receiver")) return "receiver";
+  return null;
+}
+
 const RegisterForm: React.FC = () => {
   const {
     register,
@@ -49,18 +62,46 @@ const RegisterForm: React.FC = () => {
     try {
       const res = await registerApi(payload).unwrap(); // expects { token, user }
 
-      // persist token & user using lib/storage helpers
-      setToken(res.token);
-      setUser(res.user);
+      // defensive extraction
+      const token = res?.token ?? "";
+      const userCandidate = res?.user ?? null;
 
-      // update redux auth slice
-      dispatch(setAuth({ token: res.token, user: res.user }));
+      if (!token) {
+        toast.error("Registration response missing token.");
+        return;
+      }
+
+      if (!userCandidate) {
+        // store token only (best-effort) and inform user/admin
+        setToken(token);
+        toast.warn(
+          "Registered but user data missing. Please contact support or try again."
+        );
+        navigate("/", { replace: true });
+        return;
+      }
+
+      const user = userCandidate as User;
+
+      // persist token & user using lib/storage helpers
+      setToken(token);
+      setUser(user);
+
+      // update redux auth slice (only with a real user)
+      dispatch(setAuth({ token, user }));
 
       toast.success("Registered");
 
-      // redirect based on role
-      if (res.user?.role === "sender") navigate("/dashboard/sender");
-      else navigate("/");
+      console.debug("register response user:", user);
+
+      // robust role handling and redirect
+      const role = normalizeRole(user.role);
+      if (role === "admin") navigate("/dashboard/admin", { replace: true });
+      else if (role === "sender")
+        navigate("/dashboard/sender", { replace: true });
+      else if (role === "receiver")
+        navigate("/dashboard/receiver", { replace: true });
+      else navigate("/", { replace: true });
     } catch (err: unknown) {
       toast.error(getErrorMessage(err));
     }

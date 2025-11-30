@@ -31,16 +31,16 @@ export const parcelsApi = baseApi.injectEndpoints({
         const qs = searchParams.toString();
         return { url: `/parcels${qs ? `?${qs}` : ""}`, method: "GET" };
       },
-      providesTags: (result) =>
-        result
-          ? [
-              ...result.data.map((p) => ({
-                type: "Parcel" as const,
-                id: p._id,
-              })),
-              { type: "Parcel", id: "LIST" },
-            ]
-          : [{ type: "Parcel", id: "LIST" }],
+      providesTags: (result) => {
+        const list = result?.data ?? [];
+        return [
+          ...list.map((p) => ({
+            type: "Parcel" as const,
+            id: p._id,
+          })),
+          { type: "Parcel", id: "LIST" },
+        ];
+      },
     }),
 
     getParcel: build.query<Parcel, { id: string }>({

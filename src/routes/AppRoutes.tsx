@@ -1,8 +1,7 @@
 // src/routes/AppRoutes.tsx
 import React from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
-// robust imports: accept either `export default Foo` OR `export const Foo = ...`
 import * as HomeModule from "../pages/public/Home";
 import * as AboutModule from "..//pages/public/About";
 import * as ContactModule from "../pages/public/Contact";
@@ -17,6 +16,7 @@ import ReceiverDashboard from "../pages/dashboards/ReceiverDashboard";
 import AdminDashboard from "../pages/dashboards/AdminDashboard";
 import { RequireAuth } from "./RequireAuth";
 import { RequireRole } from "./RequireRole";
+import { useAppSelector } from "../app/hooks";
 
 /**
  * Type guard: is this value a React component (function/class/forwardRef/etc)?
@@ -32,9 +32,6 @@ function isReactComponent(
 
 /**
  * Resolve a React component from a module namespace.
- * Tries .default, then a collection of named exports.
- *
- * NOTE: TProps defaults to `unknown` to avoid `any` lint complaints.
  */
 function resolveModuleComponent<TProps = unknown>(
   mod: unknown,
@@ -84,6 +81,24 @@ const Contact = resolveModuleComponent(ContactModule, "Contact");
 const Faq = resolveModuleComponent(FaqModule, "Faq");
 const Features = resolveModuleComponent(FeaturesModule, "Features");
 
+const RequireNoAuth: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  // IMPORTANT: Hooks must be at top level (no conditions)
+  const token = useAppSelector((s) => s.auth.token);
+  const role = useAppSelector((s) => s.auth.user?.role);
+
+  if (token) {
+    if (role === "sender") return <Navigate to="/dashboard/sender" replace />;
+    if (role === "receiver")
+      return <Navigate to="/dashboard/receiver" replace />;
+    if (role === "admin") return <Navigate to="/dashboard/admin" replace />;
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 export default function AppRoutes() {
   return (
     <Routes>
@@ -96,8 +111,23 @@ export default function AppRoutes() {
       <Route path="/tracking" element={<TrackingPage />} />
 
       {/* Auth */}
-      <Route path="/auth/login" element={<LoginPage />} />
-      <Route path="/auth/register" element={<RegisterPage />} />
+      <Route
+        path="/auth/login"
+        element={
+          <RequireNoAuth>
+            <LoginPage />
+          </RequireNoAuth>
+        }
+      />
+
+      <Route
+        path="/auth/register"
+        element={
+          <RequireNoAuth>
+            <RegisterPage />
+          </RequireNoAuth>
+        }
+      />
 
       {/* Dashboards */}
       <Route
