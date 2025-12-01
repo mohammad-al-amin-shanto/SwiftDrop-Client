@@ -1,4 +1,3 @@
-// src/pages/dashboards/SenderDashboard.tsx
 import React from "react";
 import CreateParcelForm from "../../components/parcels/CreateParcelForm";
 import ParcelTable from "../../components/parcels/ParcelTable";
@@ -9,88 +8,124 @@ import StatusPieChart from "../../components/charts/StatusPieChart";
 import DashboardTour from "../../components/ui/DashboardTour";
 
 const SenderDashboard: React.FC = () => {
-  // get current user to pass senderId to parcel list (so sender sees only their parcels)
   const user = useAppSelector((s) => s.auth.user);
   const senderId = user?._id;
 
-  // small stats for cards/charts
   const { data: stats, isLoading: statsLoading } = useParcelsStatsQuery();
 
   return (
-    <div className="space-y-6 p-4">
-      {/* Hero (tour target) */}
-      <div data-driver-id="hero" className="tour-hero">
+    <div className="space-y-8 p-4 md:p-6">
+      {/* Header */}
+      <div
+        data-driver-id="hero"
+        className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Sender Dashboard</h1>
-            <p className="text-sm text-gray-500">Overview of your shipments</p>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+              Sender Dashboard
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Overview of your shipments at a glance
+            </p>
           </div>
-          <div>{/* optional quick actions could go here */}</div>
         </div>
       </div>
 
-      {/* Overview cards */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card">
-          <div className="text-xs text-gray-500">Total Parcels</div>
-          <div className="text-xl font-semibold">{stats?.total ?? "—"}</div>
+        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+          <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Total Parcels
+          </div>
+          <div className="text-2xl font-semibold text-slate-900 dark:text-white mt-1">
+            {stats?.total ?? "—"}
+          </div>
         </div>
-        <div className="card">
-          <div className="text-xs text-gray-500">Delivered</div>
-          <div className="text-xl font-semibold">{stats?.delivered ?? "—"}</div>
+
+        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+          <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Delivered
+          </div>
+          <div className="text-2xl font-semibold text-green-600 dark:text-green-400 mt-1">
+            {stats?.delivered ?? "—"}
+          </div>
         </div>
-        <div className="card">
-          <div className="text-xs text-gray-500">In Transit</div>
-          <div className="text-xl font-semibold">{stats?.inTransit ?? "—"}</div>
+
+        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+          <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            In Transit
+          </div>
+          <div className="text-2xl font-semibold text-blue-600 dark:text-blue-400 mt-1">
+            {stats?.inTransit ?? "—"}
+          </div>
         </div>
-        <div className="card">
-          <div className="text-xs text-gray-500">Cancelled</div>
-          <div className="text-xl font-semibold">{stats?.cancelled ?? "—"}</div>
+
+        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+          <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Cancelled
+          </div>
+          <div className="text-2xl font-semibold text-red-600 dark:text-red-400 mt-1">
+            {stats?.cancelled ?? "—"}
+          </div>
         </div>
       </div>
 
-      {/* Charts (tour target) */}
+      {/* Charts */}
       <div
         data-driver-id="charts"
         className="grid grid-cols-1 lg:grid-cols-3 gap-4"
       >
-        <div className="col-span-2 bg-white dark:bg-slate-800 p-4 rounded shadow">
-          <h4 className="mb-3 font-medium">Monthly Shipments</h4>
+        <div className="col-span-2 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700">
+          <h4 className="mb-3 font-semibold text-slate-800 dark:text-white">
+            Monthly Shipments
+          </h4>
           <ShipmentsBarChart
             data={stats?.monthly ?? []}
             loading={statsLoading}
           />
         </div>
-        <div className="bg-white dark:bg-slate-800 p-4 rounded shadow">
-          <h4 className="mb-3 font-medium">Status Distribution</h4>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700">
+          <h4 className="mb-3 font-semibold text-slate-800 dark:text-white">
+            Status Distribution
+          </h4>
           <StatusPieChart stats={stats} loading={statsLoading} />
         </div>
       </div>
 
-      {/* Create Parcel (tour target) */}
+      {/* Create Parcel */}
       <div
         data-driver-id="create-parcel"
-        className="bg-white dark:bg-slate-800 p-4 rounded shadow"
+        className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
       >
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
+          Create New Parcel
+        </h3>
         <CreateParcelForm />
       </div>
 
-      {/* Search area (tour target) */}
-      <div data-driver-id="parcel-search" className="tour-parcel-search">
-        <div className="mb-2">
-          <p className="text-sm text-gray-500">
-            Search and filter your parcels using the controls inside the table.
-          </p>
-        </div>
+      {/* Info hint */}
+      <div
+        data-driver-id="parcel-search"
+        className="bg-slate-50 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700"
+      >
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Search and filter your parcels using the controls in the table below.
+        </p>
       </div>
 
-      {/* Parcel list (tour target) */}
-      <div data-driver-id="parcel-table">
-        <h3 className="text-lg font-semibold mb-2">Your Parcels</h3>
+      {/* Parcel table */}
+      <div
+        data-driver-id="parcel-table"
+        className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+      >
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
+          Your Parcels
+        </h3>
         <ParcelTable senderId={senderId} initialLimit={10} />
       </div>
 
-      {/* mount Dashboard tour (autostart when component mounts) */}
       <DashboardTour autostart={true} />
     </div>
   );
