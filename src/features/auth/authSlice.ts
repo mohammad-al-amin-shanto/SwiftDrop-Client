@@ -18,8 +18,9 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  token: getToken(),
-  user: (getUser() as User) ?? null,
+  token: getToken(), // may be null
+  // getUser() returns unknown|null — coerce safely to User | null
+  user: (getUser() as User | null) ?? null,
   loading: false,
 };
 
@@ -27,18 +28,38 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setAuth(state, action: PayloadAction<{ token: string; user: User }>) {
-      state.token = action.payload.token;
-      state.user = action.payload.user;
-      setToken(action.payload.token);
-      setUser(action.payload.user);
+    /**
+     * Set authentication state.
+     * Accepts token (string|null) and user (User|null).
+     * - token=null means "no token" (also clears storage).
+     * - user=null means "no user" (also clears storage).
+     */
+    setAuth(
+      _state,
+      action: PayloadAction<{ token: string | null; user: User | null }>
+    ) {
+      const { token, user } = action.payload;
+
+      // update state
+      _state.token = token;
+      _state.user = user;
+
+      // persist — keep storage helpers responsible for normalization
+      if (token) setToken(token);
+      else clearToken();
+
+      if (user) setUser(user);
+      else clearUser();
     },
+
+    /** Clear auth fully (state + storage) */
     clearAuthState(state) {
       state.token = null;
       state.user = null;
       clearToken();
       clearUser();
     },
+
     setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
     },

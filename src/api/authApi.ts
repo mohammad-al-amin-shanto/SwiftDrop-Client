@@ -3,7 +3,14 @@ import type { User } from "../types";
 import { baseApi } from "./baseApi";
 
 /**
- * This module normalizes responses into { token, user } for the rest of the app.
+ * Normalize server response shapes into { token, user }.
+ *
+ * Servers commonly reply:
+ *  { status: 'success', data: { user: {...}, accessToken: '...', refreshToken: '...' } }
+ * or sometimes:
+ *  { user: {...}, accessToken: '...' }
+ *
+ * This module tries to detect both shapes gracefully.
  */
 
 type ServerData =
@@ -40,14 +47,12 @@ export interface RegisterPayload {
   role: string;
 }
 
-/**
- * Safely extract the "data-like" object from various server response shapes.
- */
+/** Safely extract the "data-like" object from the various payload shapes. */
 function extractServerData(response: ServerAuthResponse): ServerData {
   if (!response || typeof response !== "object") return null;
 
-  // If the response has a 'data' property that's an object, prefer that.
   const asRecord = response as Record<string, unknown>;
+
   if (
     "data" in asRecord &&
     typeof asRecord.data === "object" &&
@@ -56,8 +61,7 @@ function extractServerData(response: ServerAuthResponse): ServerData {
     return asRecord.data as ServerData;
   }
 
-  // Otherwise, if the response itself looks like the data payload (has accessToken/user), return it.
-  // We check for either accessToken/token or user to decide.
+  // If top-level contains tokens or user, treat it as data
   if ("accessToken" in asRecord || "token" in asRecord || "user" in asRecord) {
     return asRecord as ServerData;
   }
@@ -75,10 +79,8 @@ export const authApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ServerAuthResponse) => {
         const data = extractServerData(response);
-
         const token = (data && (data.accessToken ?? data.token)) ?? "";
         const user = (data && (data.user ?? null)) as User | null;
-
         return { token, user };
       },
       invalidatesTags: ["Auth"],
@@ -92,15 +94,14 @@ export const authApi = baseApi.injectEndpoints({
       }),
       transformResponse: (response: ServerAuthResponse) => {
         const data = extractServerData(response);
-
         const token = (data && (data.accessToken ?? data.token)) ?? "";
         const user = (data && (data.user ?? null)) as User | null;
-
         return { token, user };
       },
       invalidatesTags: ["Auth"],
     }),
 
+    // optional: get current user
     me: build.query<{ user: User }, void>({
       query: () => ({ url: "/auth/me", method: "GET" }),
       providesTags: ["Auth"],

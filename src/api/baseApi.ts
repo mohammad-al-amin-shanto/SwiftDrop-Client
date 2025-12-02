@@ -1,43 +1,111 @@
 // src/api/baseApi.ts
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import type { BaseQueryFn } from "@reduxjs/toolkit/query";
+import type { FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { RootState } from "../app/store";
-import { getToken } from "../lib/storage";
+import { getToken, clearToken, clearUser } from "../lib/storage";
+import { clearAuthState } from "../features/auth/authSlice";
+// Optional: show toast to the user on session expiry
+// import { toast } from "react-toastify";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
-console.log("API base URL:", BASE_URL);
+const BASE_URL =
+  (import.meta.env && (import.meta.env.VITE_API_URL as string)) ??
+  "http://localhost:4000/api";
+
+if (import.meta.env && import.meta.env.DEV) {
+  console.info("[baseApi] API base URL:", BASE_URL);
+}
+
+/**
+ * Raw fetchBaseQuery instance that attaches token from storage or redux
+ * and sets sensible defaults.
+ */
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl: BASE_URL,
+  credentials: "include",
+  prepareHeaders: (headers, api) => {
+    // Prefer token from local storage (persisted) so reloads keep working.
+    const tokenFromStorage = getToken(); // string | null
+
+    // Try reading token from redux store (may be undefined)
+    let tokenFromStore: string | undefined;
+    try {
+      const getState = api.getState as () => RootState | undefined;
+      const maybe = getState?.()?.auth?.token;
+      tokenFromStore =
+        maybe === null ? undefined : (maybe as string | undefined);
+    } catch {
+      tokenFromStore = undefined;
+    }
+
+    // Final token (string | undefined)
+    const token = tokenFromStorage ?? tokenFromStore ?? undefined;
+
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    // DEV logging of outgoing headers to confirm token goes out
+    if (import.meta.env && import.meta.env.DEV) {
+      try {
+        const headObj: Record<string, string> = {};
+        headers.forEach((value, key) => (headObj[key] = value));
+        console.debug("[baseApi] prepared headers:", headObj);
+      } catch {
+        // ignore logging errors
+      }
+    }
+
+    return headers;
+  },
+}) as BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError>;
+
+/**
+ * Wrapper around rawBaseQuery which handles 401 responses:
+ * - clears local storage
+ * - clears redux auth state
+ * - returns original error so callers see it
+ */
+const baseQueryWith401Handler: BaseQueryFn<
+  string | FetchArgs,
+  unknown,
+  FetchBaseQueryError
+> = async (args, api, extraOptions) => {
+  const result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error && result.error.status === 401) {
+    try {
+      // Clear persisted storage keys
+      clearToken();
+      clearUser();
+      // Clear redux slice
+      api.dispatch(clearAuthState());
+    } catch (e) {
+      console.debug("401 handler cleanup failed:", e);
+    }
+
+    // OPTIONAL: notify user (uncomment to enable)
+    // toast.error("Session expired — please sign in again.");
+    // OPTIONAL: redirect user to login page (uncomment to enable)
+    // window.location.href = "/auth/login";
+
+    // Return original error upward so components can handle it
+    return result;
+  }
+
+  return result;
+};
 
 export const baseApi = createApi({
   reducerPath: "baseApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: BASE_URL,
-    prepareHeaders: (headers: Headers, api) => {
-      // 1) token from storage (string | null)
-      const tokenFromStorage = getToken();
-
-      // 2) attempt to read token from Redux store (could be string | null | undefined)
-      const getState = api.getState as () => RootState | undefined;
-      let tokenFromStoreRaw: string | null | undefined;
-      try {
-        tokenFromStoreRaw = getState?.()?.auth?.token;
-      } catch {
-        tokenFromStoreRaw = undefined;
-      }
-
-      // 3) normalize null -> undefined so final type is string | undefined
-      const tokenFromStore: string | undefined =
-        tokenFromStoreRaw === null ? undefined : tokenFromStoreRaw;
-
-      // 4) final token (string | undefined) — no null here
-      const token: string | undefined =
-        tokenFromStorage ?? tokenFromStore ?? undefined;
-
-      if (token) {
-        headers.set("authorization", `Bearer ${token}`);
-      }
-      return headers;
-    },
-    credentials: "include",
-  }),
+  baseQuery: baseQueryWith401Handler,
   tagTypes: ["User", "Parcel", "Auth"],
   endpoints: () => ({}),
 });
+
+// named + default export for compatibility with different import styles
+export default baseApi;
