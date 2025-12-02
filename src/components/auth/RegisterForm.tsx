@@ -9,6 +9,24 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import type { User } from "../../types";
 
+/** Short id generator (same approach as LoginForm) */
+function generateShortId(length = 8) {
+  try {
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const arr = new Uint8Array(length);
+    crypto.getRandomValues(arr);
+    return Array.from(arr)
+      .map((n) => chars[n % chars.length])
+      .join("");
+  } catch {
+    return Math.random()
+      .toString(36)
+      .slice(2, 2 + length)
+      .padEnd(length, "0");
+  }
+}
+
 type FormValues = {
   name: string;
   email: string;
@@ -16,7 +34,6 @@ type FormValues = {
   role: "sender" | "receiver";
 };
 
-/** Safe error extractor (no `any`) */
 function getErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;
@@ -33,7 +50,6 @@ function getErrorMessage(err: unknown): string {
   return "An error occurred";
 }
 
-/** Normalize backend role value into one of: admin | sender | receiver | null */
 function normalizeRole(
   roleLike: unknown
 ): "admin" | "sender" | "receiver" | null {
@@ -45,11 +61,14 @@ function normalizeRole(
   return null;
 }
 
+type UserWithShortId = User & { shortId?: string };
+
 const RegisterForm: React.FC = () => {
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
+    setFocus,
   } = useForm<FormValues>({
     defaultValues: { name: "", email: "", password: "", role: "sender" },
   });
@@ -58,13 +77,16 @@ const RegisterForm: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  // Focus first input on mount for better UX
+  React.useEffect(() => {
+    setFocus("name");
+  }, [setFocus]);
+
   const onSubmit = async (payload: FormValues) => {
     try {
       const res = await registerApi(payload).unwrap(); // expects { token, user }
-
-      // defensive extraction
       const token = res?.token ?? "";
-      const userCandidate = res?.user ?? null;
+      const userCandidate = (res?.user ?? null) as User | null;
 
       if (!token) {
         toast.error("Registration response missing token.");
@@ -72,30 +94,30 @@ const RegisterForm: React.FC = () => {
       }
 
       if (!userCandidate) {
-        // store token only (best-effort) and inform user/admin
+        // fallback: persist token only
         setToken(token);
-        toast.warn(
-          "Registered but user data missing. Please contact support or try again."
-        );
+        toast.warn("Registered but user data missing. Contact support.");
         navigate("/", { replace: true });
         return;
       }
 
-      const user = userCandidate as User;
+      // ensure shortId exists and keep immutability
+      const user = userCandidate as UserWithShortId;
+      const storedUser: UserWithShortId = {
+        ...user,
+        shortId:
+          (user.shortId && String(user.shortId).trim()) || generateShortId(8),
+      };
 
-      // persist token & user using lib/storage helpers
+      // persist token and user, update redux
       setToken(token);
-      setUser(user);
+      setUser(storedUser);
+      dispatch(setAuth({ token, user: storedUser }));
 
-      // update redux auth slice (only with a real user)
-      dispatch(setAuth({ token, user }));
+      toast.success("Account created — welcome!");
 
-      toast.success("Registered");
-
-      console.debug("register response user:", user);
-
-      // robust role handling and redirect
-      const role = normalizeRole(user.role);
+      // role-based redirect
+      const role = normalizeRole(storedUser.role);
       if (role === "admin") navigate("/dashboard/admin", { replace: true });
       else if (role === "sender")
         navigate("/dashboard/sender", { replace: true });
@@ -108,71 +130,140 @@ const RegisterForm: React.FC = () => {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="max-w-md mx-auto bg-white dark:bg-slate-800 p-6 rounded shadow"
-    >
-      <h2 className="text-xl font-semibold mb-4">Create an account</h2>
+    <div className="min-h-[60vh] flex items-start justify-center px-4 py-12 sm:py-20">
+      <div className="w-full max-w-lg">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm overflow-hidden">
+          <div className="p-6 sm:p-8">
+            <h1 className="text-2xl sm:text-3xl font-extrabold mb-1 text-slate-900 dark:text-white">
+              Create an account
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-300 mb-6">
+              Sign up as a sender or receiver. You'll get a User ID for quick
+              sharing.
+            </p>
 
-      <label className="block mb-3">
-        <div className="text-sm mb-1">Full name</div>
-        <input
-          {...register("name", { required: "Name required" })}
-          className="input"
-        />
-        {errors.name && (
-          <div className="text-xs text-red-500 mt-1">{errors.name.message}</div>
-        )}
-      </label>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Name */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1"
+                >
+                  Full name
+                </label>
+                <input
+                  id="name"
+                  {...register("name", { required: "Name required" })}
+                  type="text"
+                  placeholder="Your full name"
+                  className="w-full rounded-md border px-3 py-2 text-sm placeholder:text-slate-400 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  aria-invalid={errors.name ? "true" : "false"}
+                />
+                {errors.name && (
+                  <p role="alert" className="mt-1 text-xs text-red-500">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
 
-      <label className="block mb-3">
-        <div className="text-sm mb-1">Email</div>
-        <input
-          {...register("email", { required: "Email required" })}
-          type="email"
-          className="input"
-        />
-        {errors.email && (
-          <div className="text-xs text-red-500 mt-1">
-            {errors.email.message}
+              {/* Email */}
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  {...register("email", { required: "Email required" })}
+                  type="email"
+                  placeholder="you@company.com"
+                  className="w-full rounded-md border px-3 py-2 text-sm placeholder:text-slate-400 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  aria-invalid={errors.email ? "true" : "false"}
+                />
+                {errors.email && (
+                  <p role="alert" className="mt-1 text-xs text-red-500">
+                    {errors.email.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Password */}
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  {...register("password", {
+                    required: "Password required",
+                    minLength: { value: 6, message: "Min 6 chars" },
+                  })}
+                  type="password"
+                  placeholder="Create a password (min 6 chars)"
+                  className="w-full rounded-md border px-3 py-2 text-sm placeholder:text-slate-400 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  aria-invalid={errors.password ? "true" : "false"}
+                />
+                {errors.password && (
+                  <p role="alert" className="mt-1 text-xs text-red-500">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Role */}
+              <div>
+                <label
+                  htmlFor="role"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1"
+                >
+                  Role
+                </label>
+                <select
+                  id="role"
+                  {...register("role")}
+                  className="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                >
+                  <option value="sender">Sender</option>
+                  <option value="receiver">Receiver</option>
+                </select>
+              </div>
+
+              {/* Submit */}
+              <div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full inline-flex justify-center items-center rounded-md bg-sky-600 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
+                >
+                  {isSubmitting ? "Creating..." : "Create account"}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4 text-center text-sm">
+              <span className="text-slate-600 dark:text-slate-300">
+                Already have an account?{" "}
+              </span>
+              <a
+                href="/auth/login"
+                className="text-sky-600 font-medium hover:underline"
+              >
+                Sign in
+              </a>
+            </div>
           </div>
-        )}
-      </label>
+        </div>
 
-      <label className="block mb-3">
-        <div className="text-sm mb-1">Password</div>
-        <input
-          {...register("password", {
-            required: "Password required",
-            minLength: { value: 6, message: "Min 6 chars" },
-          })}
-          type="password"
-          className="input"
-        />
-        {errors.password && (
-          <div className="text-xs text-red-500 mt-1">
-            {errors.password.message}
-          </div>
-        )}
-      </label>
-
-      <label className="block mb-3">
-        <div className="text-sm mb-1">Role</div>
-        <select {...register("role")} className="input">
-          <option value="sender">Sender</option>
-          <option value="receiver">Receiver</option>
-        </select>
-      </label>
-
-      <div className="flex justify-between items-center mt-4">
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
-          {isSubmitting ? "Creating..." : "Create account"}
-        </button>
-        <a href="/auth/login" className="text-sm text-sky-600">
-          Sign in
-        </a>
+        <div className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+          By creating an account you agree to our terms and privacy policy.
+        </div>
       </div>
-    </form>
+    </div>
   );
 };
 

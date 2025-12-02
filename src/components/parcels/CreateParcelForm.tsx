@@ -1,3 +1,4 @@
+// src/components/parcels/CreateParcelForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useCreateParcelMutation } from "../../api/parcelsApi";
@@ -8,6 +9,9 @@ type FormValues = {
   senderName: string;
   senderPhone: string;
   senderAddress: string;
+
+  // NEW: receiverId (required by backend)
+  receiverId: string;
 
   receiverName: string;
   receiverPhone: string;
@@ -23,6 +27,7 @@ const defaults: FormValues = {
   senderName: "",
   senderPhone: "",
   senderAddress: "",
+  receiverId: "", // keep empty by default
   receiverName: "",
   receiverPhone: "",
   receiverAddress: "",
@@ -47,6 +52,26 @@ function getErrorMessage(err: unknown): string {
   return "Failed to create parcel";
 }
 
+/**
+ * Map form values to the server DTO expected by your backend.
+ * NOTE: backend requires `receiverId` and expects `price` (not cost)
+ */
+const mapToDto = (values: FormValues): ParcelCreateDto => {
+  const weight = Number(values.weightKg ?? 0);
+  const price = Number(values.declaredValue ?? 0);
+
+  const dto: ParcelCreateDto & Record<string, unknown> = {
+    receiverId: values.receiverId, // required by server
+    origin: values.senderAddress || "",
+    destination: values.receiverAddress || "",
+    weight,
+    price,
+    note: values.note || "",
+  };
+
+  return dto as ParcelCreateDto;
+};
+
 export const CreateParcelForm: React.FC = () => {
   const { register, handleSubmit, reset, formState } = useForm<FormValues>({
     defaultValues: defaults,
@@ -55,22 +80,45 @@ export const CreateParcelForm: React.FC = () => {
 
   const [createParcel, { isLoading }] = useCreateParcelMutation();
 
-  const mapToDto = (values: FormValues): ParcelCreateDto => ({
-    receiverEmail: undefined,
-    origin: values.senderAddress,
-    destination: values.receiverAddress,
-    weight: values.weightKg,
-    cost: values.declaredValue,
-    note: values.note,
-  });
-
   const onSubmit = async (payload: FormValues) => {
+    // Client-side validation to match backend expectations
+    if (!payload.senderAddress || !payload.receiverAddress) {
+      toast.error("Origin and destination addresses are required.");
+      return;
+    }
+
+    // Backend requires receiverId
+    if (!payload.receiverId || !payload.receiverId.trim()) {
+      toast.error(
+        "Receiver ID is required. Use an existing user ID or implement a lookup to find/create a receiver."
+      );
+      return;
+    }
+
+    // Basic checks for names/phones
+    if (!payload.receiverName || !payload.receiverPhone) {
+      toast.error("Receiver name and phone are required.");
+      return;
+    }
+    if (!payload.senderName || !payload.senderPhone) {
+      toast.error("Sender name and phone are required.");
+      return;
+    }
+
+    const dto = mapToDto(payload);
+    console.debug("Create parcel - outgoing payload:", dto);
+
     try {
-      const created = await createParcel(mapToDto(payload)).unwrap();
+      const created = await createParcel(dto).unwrap();
       toast.success(`Parcel created — Tracking ID: ${created.trackingId}`);
       reset(defaults);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      console.error("createParcel error:", err);
+      if (isApiError(err) && err.data) {
+        console.error("Server error body:", err.data);
+      }
+      const msg = getErrorMessage(err);
+      toast.error(msg);
     }
   };
 
@@ -145,6 +193,26 @@ export const CreateParcelForm: React.FC = () => {
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* NEW: receiverId input */}
+          <Field
+            id="receiverId"
+            label="Receiver User ID (required)"
+            error={formState.errors.receiverId?.message}
+          >
+            <input
+              id="receiverId"
+              {...register("receiverId", {
+                required: "ReceiverId is required by the server",
+              })}
+              className="w-full text-sm sm:text-base border rounded px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              placeholder="Mongo user id (e.g. 63f1e4...)"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Use an existing user id. If you don't have one implement a lookup
+              by phone/email or create the user server-side.
+            </p>
+          </Field>
+
           <Field
             id="receiverName"
             label="Receiver Name"
@@ -295,7 +363,6 @@ function Field({
   children: React.ReactNode;
   full?: boolean;
 }) {
-  // use sm:col-span-2 so that on small screens (narrow) wide fields still span full width visually
   const colClass = full ? "sm:col-span-2" : "";
   return (
     <div className={colClass}>

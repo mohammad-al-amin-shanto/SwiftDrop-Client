@@ -1,6 +1,6 @@
 // src/components/layout/Sidebar.tsx
 import React from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAppSelector } from "../../app/hooks";
 
 type Props = {
@@ -11,6 +11,14 @@ type Props = {
 const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
   const user = useAppSelector((s) => s.auth.user);
   const role = user?.role ?? "guest";
+  const isAuth = Boolean(user);
+
+  // helper: when logged in use dashboard equivalent, otherwise public path
+  const linkTo = (publicPath: string, dashboardPath: string) =>
+    isAuth ? dashboardPath : publicPath;
+
+  const activeClass =
+    "block py-2 px-3 rounded bg-sky-100 dark:bg-sky-900 text-sky-800 dark:text-white";
 
   const items: Array<{ to: string; label: string; roles: string[] }> = [
     { to: "/dashboard/sender", label: "Sender Dashboard", roles: ["sender"] },
@@ -21,12 +29,12 @@ const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
     },
     { to: "/dashboard/admin", label: "Admin Dashboard", roles: ["admin"] },
     {
-      to: "/tracking",
+      to: linkTo("/tracking", "/dashboard/tracking"),
       label: "Track Parcel",
-      roles: ["sender", "receiver", "admin"],
+      roles: ["sender", "receiver", "admin", "guest"],
     },
     {
-      to: "/features",
+      to: linkTo("/features", "/dashboard/features"),
       label: "Features",
       roles: ["guest", "sender", "receiver", "admin"],
     },
@@ -45,7 +53,6 @@ const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
           <div className="font-semibold">{user?.name ?? "Guest"}</div>
         </div>
 
-        {/* small close button so onClose is actually used (useful on mobile) */}
         {onClose ? (
           <button
             onClick={onClose}
@@ -60,16 +67,21 @@ const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
 
       <nav className="space-y-2">
         {items.map((it) => {
-          const allowed = it.roles.includes(role);
+          const allowed = it.roles.includes(role) || it.roles.includes("guest");
           if (!allowed) return null;
           return (
-            <Link
+            <NavLink
               key={it.to}
               to={it.to}
-              className="block py-2 px-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+              onClick={onClose}
+              className={({ isActive }) =>
+                isActive
+                  ? activeClass
+                  : "block py-2 px-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+              }
             >
               {it.label}
-            </Link>
+            </NavLink>
           );
         })}
       </nav>

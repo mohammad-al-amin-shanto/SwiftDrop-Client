@@ -1,173 +1,149 @@
 // src/routes/AppRoutes.tsx
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useAppSelector } from "../app/hooks";
+import { selectIsAuthenticated } from "../features/auth/authSelectors";
 
-import * as HomeModule from "../pages/public/Home";
-import * as AboutModule from "..//pages/public/About";
-import * as ContactModule from "../pages/public/Contact";
-import * as FaqModule from "../pages/public/Faq";
-import * as FeaturesModule from "../pages/public/Features";
+// Public pages
+import Home from "../pages/public/Home";
+import About from "../pages/public/About";
+import Features from "../pages/public/Features";
+import Contact from "../pages/public/Contact";
+import Faq from "../pages/public/Faq";
 
-import TrackingPage from "../pages/tracking/TrackingPage";
+// Auth pages
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
+
+// Dashboards
 import SenderDashboard from "../pages/dashboards/SenderDashboard";
 import ReceiverDashboard from "../pages/dashboards/ReceiverDashboard";
 import AdminDashboard from "../pages/dashboards/AdminDashboard";
-import { RequireAuth } from "./RequireAuth";
-import { RequireRole } from "./RequireRole";
-import { useAppSelector } from "../app/hooks";
+import TrackingPage from "../pages/tracking/TrackingPage";
+
+// Layout & guards
+import AppShell from "../components/layout/AppShell";
+import RequireAuth from "./RequireAuth";
 
 /**
- * Type guard: is this value a React component (function/class/forwardRef/etc)?
- * We keep this conservative: function OR non-null object.
+ * Minimal local type for the user object shape we rely on here.
+ * Replace with your real User type if you have one exported from types/.
  */
-function isReactComponent(
-  value: unknown
-): value is React.ComponentType<unknown> {
-  return (
-    typeof value === "function" || (typeof value === "object" && value !== null)
+type CurrentUserLite = {
+  role?: string;
+} | null;
+
+const AppRoutes: React.FC = () => {
+  const isAuth = useAppSelector(selectIsAuthenticated);
+  const currentUser = useAppSelector(
+    (s) => (s.auth?.user as CurrentUserLite) ?? null
   );
-}
+  const location = useLocation();
 
-/**
- * Resolve a React component from a module namespace.
- */
-function resolveModuleComponent<TProps = unknown>(
-  mod: unknown,
-  displayName = "Page"
-): React.ComponentType<TProps> {
-  // treat module as an indexable record of unknowns
-  const m = (mod as Record<string, unknown> | null) ?? {};
+  const chooseDashboard = () => {
+    const role = currentUser?.role ?? "";
+    if (role === "admin") return "/dashboard/admin";
+    if (role === "receiver") return "/dashboard/receiver";
+    return "/dashboard/sender";
+  };
 
-  // pick the most likely export candidates (default first, then common names)
-  const candidate =
-    m["default"] ??
-    m["Home"] ??
-    m["home"] ??
-    m["About"] ??
-    m["about"] ??
-    m["Contact"] ??
-    m["contact"] ??
-    m["Faq"] ??
-    m["faq"] ??
-    m["Features"] ??
-    m["features"] ??
-    null;
+  const HomeOrRedirect: React.FC = () => {
+    if (!isAuth) return <Home />;
+    return <Navigate to={chooseDashboard()} replace />;
+  };
 
-  if (isReactComponent(candidate)) {
-    // safe cast — we've validated it's a component at runtime
-    return candidate as React.ComponentType<TProps>;
-  }
+  const PublicOnly: React.FC<{ children: React.ReactNode }> = ({
+    children,
+  }) => {
+    if (isAuth) return <Navigate to={chooseDashboard()} replace />;
+    return <>{children}</>;
+  };
 
-  // fallback component: friendly error UI
-  const Fallback: React.FC<TProps> = () => (
-    <div className="p-8 text-center">
-      <h2 className="text-xl font-semibold">{displayName} missing</h2>
-      <p className="text-sm text-gray-500 mt-2">
-        The module for <strong>{displayName}</strong> does not export a usable
-        component.
-      </p>
-    </div>
-  );
-
-  return Fallback;
-}
-
-// Resolve public pages (works whether the modules export default or named)
-const Home = resolveModuleComponent(HomeModule, "Home");
-const About = resolveModuleComponent(AboutModule, "About");
-const Contact = resolveModuleComponent(ContactModule, "Contact");
-const Faq = resolveModuleComponent(FaqModule, "Faq");
-const Features = resolveModuleComponent(FeaturesModule, "Features");
-
-const RequireNoAuth: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  // IMPORTANT: Hooks must be at top level (no conditions)
-  const token = useAppSelector((s) => s.auth.token);
-  const role = useAppSelector((s) => s.auth.user?.role);
-
-  if (token) {
-    if (role === "sender") return <Navigate to="/dashboard/sender" replace />;
-    if (role === "receiver")
-      return <Navigate to="/dashboard/receiver" replace />;
-    if (role === "admin") return <Navigate to="/dashboard/admin" replace />;
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/" element={<Home />} />
-      <Route path="/about" element={<About />} />
-      <Route path="/features" element={<Features />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/faq" element={<Faq />} />
-      <Route path="/tracking" element={<TrackingPage />} />
+      {/* root */}
+      <Route path="/" element={<HomeOrRedirect />} />
 
-      {/* Auth */}
+      {/* public pages */}
+      <Route
+        path="/about"
+        element={
+          <PublicOnly>
+            <About />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/features"
+        element={
+          <PublicOnly>
+            <Features />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/contact"
+        element={
+          <PublicOnly>
+            <Contact />
+          </PublicOnly>
+        }
+      />
+      <Route
+        path="/faq"
+        element={
+          <PublicOnly>
+            <Faq />
+          </PublicOnly>
+        }
+      />
+
+      {/* auth */}
       <Route
         path="/auth/login"
         element={
-          <RequireNoAuth>
-            <LoginPage />
-          </RequireNoAuth>
+          isAuth ? <Navigate to={chooseDashboard()} replace /> : <LoginPage />
         }
       />
-
       <Route
         path="/auth/register"
         element={
-          <RequireNoAuth>
+          isAuth ? (
+            <Navigate to={chooseDashboard()} replace />
+          ) : (
             <RegisterPage />
-          </RequireNoAuth>
+          )
         }
       />
 
-      {/* Dashboards */}
+      {/* protected (AppShell) */}
       <Route
-        path="/dashboard/sender"
+        path="/dashboard"
         element={
           <RequireAuth>
-            <RequireRole role="sender">
-              <SenderDashboard />
-            </RequireRole>
+            <AppShell />
           </RequireAuth>
         }
-      />
+      >
+        <Route path="sender" element={<SenderDashboard />} />
+        <Route path="receiver" element={<ReceiverDashboard />} />
+        <Route path="admin" element={<AdminDashboard />} />
+        <Route path="tracking" element={<TrackingPage />} />
 
-      <Route
-        path="/dashboard/receiver"
-        element={
-          <RequireAuth>
-            <RequireRole role="receiver">
-              <ReceiverDashboard />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
+        {/* dashboard-scoped features route so logged-in users can access features inside AppShell */}
+        <Route path="features" element={<Features />} />
 
-      <Route
-        path="/dashboard/admin"
-        element={
-          <RequireAuth>
-            <RequireRole role="admin">
-              <AdminDashboard />
-            </RequireRole>
-          </RequireAuth>
-        }
-      />
+        {/* default */}
+        <Route index element={<Navigate to="/dashboard/sender" replace />} />
+      </Route>
 
-      {/* Fallback */}
+      {/* fallback */}
       <Route
-        path="/403"
-        element={<div className="p-8">Not authorized — contact admin</div>}
+        path="*"
+        element={<Navigate to="/" replace state={{ from: location }} />}
       />
     </Routes>
   );
-}
+};
+
+export default AppRoutes;

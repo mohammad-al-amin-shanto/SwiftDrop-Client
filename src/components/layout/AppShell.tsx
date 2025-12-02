@@ -1,31 +1,45 @@
 // src/components/layout/AppShell.tsx
 import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
+import Footer from "./Footer";
 
 type Props = {
   children?: React.ReactNode;
   hideChrome?: boolean;
 };
 
-export const AppShell: React.FC<Props> = ({ children, hideChrome = false }) => {
+const AppShell: React.FC<Props> = ({ children, hideChrome = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const renderContent = () => {
+    if (children !== undefined && children !== null) return <>{children}</>;
+    return <Outlet />;
+  };
+
+  // hideChrome → no navbar, no sidebar, BUT footer still shown
+  if (hideChrome) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col">
+        <main className="flex-1 p-4">{renderContent()}</main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-      {/* ⭐ Hide Navbar when hideChrome = true */}
-      {!hideChrome && <Navbar onOpenSidebar={() => setSidebarOpen(true)} />}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 flex flex-col">
+      <Navbar onOpenSidebar={() => setSidebarOpen(true)} />
 
-      <div className="flex">
-        {/* ⭐ Hide Sidebar for desktop */}
-        {!hideChrome && (
-          <div className="hidden md:block">
-            <Sidebar open />
-          </div>
-        )}
+      <div className="flex flex-1">
+        {/* Desktop sidebar */}
+        <div className="hidden md:block">
+          <Sidebar open />
+        </div>
 
-        {/* ⭐ Mobile Sidebar Drawer */}
-        {!hideChrome && sidebarOpen && (
+        {/* Mobile sidebar */}
+        {sidebarOpen && (
           <div className="md:hidden fixed inset-0 z-40 flex">
             <div className="w-64 bg-white dark:bg-slate-900 p-4">
               <Sidebar open onClose={() => setSidebarOpen(false)} />
@@ -34,10 +48,16 @@ export const AppShell: React.FC<Props> = ({ children, hideChrome = false }) => {
           </div>
         )}
 
-        <main className="flex-1 p-4">{children}</main>
+        {/* Page content */}
+        <main className="flex-1 p-4">{renderContent()}</main>
       </div>
+
+      {/* Global Footer */}
+      <Footer />
     </div>
   );
 };
 
+// export both named + default
+export { AppShell };
 export default AppShell;

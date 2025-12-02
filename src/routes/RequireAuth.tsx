@@ -2,19 +2,22 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAppSelector } from "../app/hooks";
+import { selectIsAuthenticated } from "../features/auth/authSelectors";
 
 type Props = {
   children: React.ReactNode;
 };
 
-export const RequireAuth: React.FC<Props> = ({ children }) => {
-  const token = useAppSelector((s) => s.auth.token);
+const RequireAuth: React.FC<Props> = ({ children }) => {
+  const isAuth = useAppSelector(selectIsAuthenticated);
   const location = useLocation();
 
-  if (!token) {
-    return <Navigate to="/auth/login" state={{ from: location }} replace />;
+  if (!isAuth) {
+    // preserve where the user tried to go so Login can redirect back
+    return <Navigate to="/auth/login" replace state={{ from: location }} />;
   }
 
-  // children may be a ReactNode; ensure it renders correctly
   return <>{children}</>;
 };
+
+export default RequireAuth;

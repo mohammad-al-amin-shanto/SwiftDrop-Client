@@ -1,7 +1,5 @@
 // src/pages/public/Features.tsx
 import React from "react";
-import { AppShell } from "../../components/layout/AppShell";
-import Footer from "../../components/layout/Footer";
 import {
   FaTruck,
   FaChartBar,
@@ -10,6 +8,12 @@ import {
   FaMobileAlt,
   FaCogs,
 } from "react-icons/fa";
+
+/**
+ * NOTE: This component is intentionally layout-free.
+ * Do NOT render AppShell, Navbar, or Sidebar here — AppShell provides the chrome
+ * when this component is used as a nested dashboard route.
+ */
 
 const FeatureCard: React.FC<{
   title: string;
@@ -29,7 +33,7 @@ const FeatureCard: React.FC<{
 
 const Features: React.FC = () => {
   return (
-    <AppShell>
+    <>
       <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
         <header>
           <h1 className="text-3xl font-extrabold">
@@ -85,9 +89,7 @@ const Features: React.FC = () => {
           </div>
         </section>
       </div>
-
-      <Footer />
-    </AppShell>
+    </>
   );
 };
 
