@@ -21,6 +21,9 @@ import ReceiverDashboard from "../pages/dashboards/ReceiverDashboard";
 import AdminDashboard from "../pages/dashboards/AdminDashboard";
 import TrackingPage from "../pages/tracking/TrackingPage";
 
+// Profile
+import ProfilePage from "../pages/profile/ProfilePage";
+
 // Layout & guards
 import AppShell from "../components/layout/AppShell";
 import RequireAuth from "./RequireAuth";
@@ -116,7 +119,17 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* protected (AppShell) */}
+      {/* Protected profile route (top-level /profile) */}
+      <Route
+        path="/profile"
+        element={
+          <RequireAuth>
+            <ProfilePage />
+          </RequireAuth>
+        }
+      />
+
+      {/* protected (AppShell) - keeps your dashboard nesting */}
       <Route
         path="/dashboard"
         element={
