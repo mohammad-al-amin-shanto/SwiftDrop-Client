@@ -3,14 +3,14 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { useCreateParcelMutation } from "../../api/parcelsApi";
 import { toast } from "react-toastify";
-import type { ParcelCreateDto } from "../../types";
+import type { ParcelCreateDto, Parcel } from "../../types";
 
 type FormValues = {
   senderName: string;
   senderPhone: string;
   senderAddress: string;
 
-  // NEW: receiverId (required by backend)
+  // Receiver SwiftDrop User ID (8-char shortId)
   receiverId: string;
 
   receiverName: string;
@@ -27,7 +27,7 @@ const defaults: FormValues = {
   senderName: "",
   senderPhone: "",
   senderAddress: "",
-  receiverId: "", // keep empty by default
+  receiverId: "",
   receiverName: "",
   receiverPhone: "",
   receiverAddress: "",
@@ -53,15 +53,48 @@ function getErrorMessage(err: unknown): string {
 }
 
 /**
+ * Shape of the API response for createParcel:
+ * - most likely: Parcel
+ * - sometimes (if you ever wrap it): { data: Parcel }
+ */
+type CreateParcelResponse = Parcel | { data?: Parcel };
+
+function extractTrackingId(res: CreateParcelResponse): string | undefined {
+  const root = res as unknown as Record<string, unknown>;
+
+  // Direct: { trackingId: "..." }
+  const direct = root["trackingId"];
+  if (typeof direct === "string" && direct.trim()) {
+    return direct;
+  }
+
+  // Nested: { data: { trackingId: "..." } }
+  const data = root["data"];
+  if (data && typeof data === "object") {
+    const dataRec = data as Record<string, unknown>;
+    const nested = dataRec["trackingId"];
+    if (typeof nested === "string" && nested.trim()) {
+      return nested;
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Map form values to the server DTO expected by your backend.
- * NOTE: backend requires `receiverId` and expects `price` (not cost)
+ * Backend requires:
+ *   - receiverId (SwiftDrop user shortId or ObjectId, depending on your design)
+ *   - origin
+ *   - destination
+ *   - price (we map from declaredValue)
  */
 const mapToDto = (values: FormValues): ParcelCreateDto => {
   const weight = Number(values.weightKg ?? 0);
   const price = Number(values.declaredValue ?? 0);
 
   const dto: ParcelCreateDto & Record<string, unknown> = {
-    receiverId: values.receiverId, // required by server
+    receiverId: values.receiverId.trim(),
     origin: values.senderAddress || "",
     destination: values.receiverAddress || "",
     weight,
@@ -87,15 +120,11 @@ export const CreateParcelForm: React.FC = () => {
       return;
     }
 
-    // Backend requires receiverId
     if (!payload.receiverId || !payload.receiverId.trim()) {
-      toast.error(
-        "Receiver ID is required. Use an existing user ID or implement a lookup to find/create a receiver."
-      );
+      toast.error("Receiver User ID is required.");
       return;
     }
 
-    // Basic checks for names/phones
     if (!payload.receiverName || !payload.receiverPhone) {
       toast.error("Receiver name and phone are required.");
       return;
@@ -109,8 +138,21 @@ export const CreateParcelForm: React.FC = () => {
     console.debug("Create parcel - outgoing payload:", dto);
 
     try {
+      // RTK Query most likely returns `Parcel` here
       const created = await createParcel(dto).unwrap();
-      toast.success(`Parcel created — Tracking ID: ${created.trackingId}`);
+
+      const trackingId = extractTrackingId(
+        created as unknown as CreateParcelResponse
+      );
+
+      if (trackingId) {
+        // This will now show SD-YYYYMMDD-XXXXXX as returned by backend
+        toast.success(`Parcel created — Tracking ID: ${trackingId}`);
+      } else {
+        console.warn("createParcel: no trackingId found in response", created);
+        toast.success("Parcel created");
+      }
+
       reset(defaults);
     } catch (err) {
       console.error("createParcel error:", err);
@@ -193,23 +235,22 @@ export const CreateParcelForm: React.FC = () => {
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* NEW: receiverId input */}
           <Field
             id="receiverId"
-            label="Receiver User ID (required)"
+            label="Receiver User ID (SwiftDrop ID)"
             error={formState.errors.receiverId?.message}
           >
             <input
               id="receiverId"
               {...register("receiverId", {
-                required: "ReceiverId is required by the server",
+                required: "Receiver User ID is required",
               })}
               className="w-full text-sm sm:text-base border rounded px-3 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-400"
-              placeholder="Mongo user id (e.g. 63f1e4...)"
+              placeholder="e.g. 2CPDGbJs"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Use an existing user id. If you don't have one implement a lookup
-              by phone/email or create the user server-side.
+              Ask the receiver to share their SwiftDrop User ID (from Profile
+              page).
             </p>
           </Field>
 

@@ -61,6 +61,53 @@ function getPersonAddress(p: User | string | PersonLike | undefined) {
   return typeof person.address === "string" ? person.address : "-";
 }
 
+/**
+ * Normalize the `useListParcelsQuery` response into:
+ *   { parcels: Parcel[], total: number }
+ *
+ * Supports shapes like:
+ *   - { data: Parcel[], total }
+ *   - { items: Parcel[], total }
+ *   - { status, data: Parcel[], meta: { total } }
+ *   - Parcel[]
+ */
+function normalizeListResponse(raw: unknown): {
+  parcels: Parcel[];
+  total: number;
+} {
+  if (!raw) return { parcels: [], total: 0 };
+
+  // If it's already an array of parcels
+  if (Array.isArray(raw)) {
+    return { parcels: raw as Parcel[], total: raw.length };
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  const dataField = obj["data"];
+  const itemsField = obj["items"];
+  const resultsField = obj["results"];
+
+  const parcels: Parcel[] = Array.isArray(dataField)
+    ? (dataField as Parcel[])
+    : Array.isArray(itemsField)
+    ? (itemsField as Parcel[])
+    : Array.isArray(resultsField)
+    ? (resultsField as Parcel[])
+    : [];
+
+  // total may be on top-level or inside meta
+  const meta = obj["meta"] as { total?: number } | undefined;
+  const total =
+    typeof obj["total"] === "number"
+      ? (obj["total"] as number)
+      : typeof meta?.total === "number"
+      ? meta.total!
+      : parcels.length;
+
+  return { parcels, total };
+}
+
 type Props = {
   initialPage?: number;
   initialLimit?: number;
@@ -102,6 +149,9 @@ export const ParcelTable: React.FC<Props> = ({
   const [cancelParcel] = useCancelParcelMutation();
   const [updateStatus] = useUpdateParcelStatusMutation();
 
+  // Normalize response
+  const { parcels, total } = normalizeListResponse(data);
+
   // show a one-time toast for load error
   useEffect(() => {
     if (isError) {
@@ -110,9 +160,6 @@ export const ParcelTable: React.FC<Props> = ({
       toast.error(`Failed to load parcels: ${msg}`);
     }
   }, [isError, error]);
-
-  const total = data?.total ?? 0;
-  const parcels = data?.data ?? [];
 
   const handleView = (p: Parcel) => {
     window.dispatchEvent(new CustomEvent<Parcel>("parcel:view", { detail: p }));
