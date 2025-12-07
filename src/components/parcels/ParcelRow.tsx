@@ -6,7 +6,6 @@ import { format } from "date-fns";
 type Props = {
   parcel: Parcel;
   onView: (p: Parcel) => void;
-  // NOTE: onConfirm now gets the entire parcel, not just the id
   onCancel: (id: string) => void;
   onConfirm?: (p: Parcel) => void;
   showConfirm?: boolean;
@@ -46,18 +45,24 @@ export const ParcelRow: React.FC<Props> = ({
   const logs: { status?: string }[] =
     extended.logs ?? extended.statusLogs ?? [];
 
-  const latestStatus =
+  // latest status: prefer the last log entry, fall back to parcel.status
+  const latestStatusRaw =
     Array.isArray(logs) && logs.length > 0
       ? logs[logs.length - 1]?.status ?? parcel.status
       : parcel.status;
 
-  const canCancel =
-    parcel.status !== "dispatched" &&
-    parcel.status !== "delivered" &&
-    parcel.status !== "cancelled";
+  const latestStatus = latestStatusRaw ?? "-";
+  const statusLower = (latestStatusRaw ?? "").toLowerCase();
 
-  const canConfirm =
-    parcel.status !== "delivered" && parcel.status !== "cancelled";
+  const canCancel = ![
+    "dispatched",
+    "delivered",
+    "cancelled",
+    "in_transit",
+    "intransit",
+  ].includes(statusLower);
+
+  const canConfirm = !["delivered", "cancelled"].includes(statusLower);
 
   // receiver may be at `receiver` or `receiverId`
   const rawReceiver = extended.receiver ?? extended.receiverId;
@@ -95,10 +100,21 @@ export const ParcelRow: React.FC<Props> = ({
         return format(new Date(raw as string | number | Date), "dd MMM yyyy");
       }
     } catch {
-      /* ignore */
+      // ignore invalid dates
     }
     return "-";
   })();
+
+  const statusColor =
+    statusLower === "delivered"
+      ? "bg-green-100 text-green-700"
+      : statusLower === "cancelled"
+      ? "bg-red-100 text-red-700"
+      : statusLower.includes("transit") || statusLower === "dispatched"
+      ? "bg-blue-100 text-blue-700"
+      : "bg-slate-100 text-slate-700";
+
+  const showConfirmButton = showConfirm || !!onConfirm;
 
   return (
     <tr className="border-b">
@@ -111,7 +127,14 @@ export const ParcelRow: React.FC<Props> = ({
 
       <td className="px-3 py-2 text-sm">{weightDisplay}</td>
 
-      <td className="px-3 py-2 text-sm">{latestStatus}</td>
+      {/* Status */}
+      <td className="px-3 py-2 text-sm">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColor}`}
+        >
+          {latestStatus}
+        </span>
+      </td>
 
       <td className="px-3 py-2 text-sm">{costDisplay}</td>
 
@@ -119,7 +142,7 @@ export const ParcelRow: React.FC<Props> = ({
 
       <td className="px-3 py-2 text-sm">
         <div className="flex gap-2">
-          {/* VIEW BUTTON - solid + visible */}
+          {/* VIEW BUTTON - always enabled */}
           <button
             onClick={() => onView(parcel)}
             className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
@@ -131,29 +154,43 @@ export const ParcelRow: React.FC<Props> = ({
             View
           </button>
 
-          {canConfirm && (showConfirm || !!onConfirm) ? (
+          {/* CONFIRM BUTTON - stays visible, disabled when not allowed */}
+          {showConfirmButton && (
             <button
-              onClick={() => onConfirm?.(parcel)}
-              className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
-                bg-green-600 hover:bg-green-700
-                text-white
-                border border-transparent"
+              onClick={() => {
+                if (canConfirm) onConfirm?.(parcel);
+              }}
+              disabled={!canConfirm}
+              aria-disabled={!canConfirm}
+              className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
+                ${
+                  canConfirm
+                    ? "bg-green-600 hover:bg-green-700 text-white border-transparent"
+                    : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
+                }
+              `}
             >
               Confirm
             </button>
-          ) : null}
+          )}
 
-          {canCancel ? (
-            <button
-              onClick={() => onCancel(parcel._id)}
-              className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
-                bg-red-600 hover:bg-red-700
-                text-white
-                border border-transparent"
-            >
-              Cancel
-            </button>
-          ) : null}
+          {/* CANCEL BUTTON - stays visible, disabled when not allowed */}
+          <button
+            onClick={() => {
+              if (canCancel) onCancel(parcel._id);
+            }}
+            disabled={!canCancel}
+            aria-disabled={!canCancel}
+            className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
+              ${
+                canCancel
+                  ? "bg-red-600 hover:bg-red-700 text-white border-transparent"
+                  : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
+              }
+            `}
+          >
+            Cancel
+          </button>
         </div>
       </td>
     </tr>

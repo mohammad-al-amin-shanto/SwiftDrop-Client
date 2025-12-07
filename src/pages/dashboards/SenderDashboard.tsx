@@ -1,3 +1,4 @@
+// src/pages/dashboards/SenderDashboard.tsx
 import React from "react";
 import CreateParcelForm from "../../components/parcels/CreateParcelForm";
 import ParcelTable from "../../components/parcels/ParcelTable";
@@ -34,7 +35,7 @@ const SenderDashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+        <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Total Parcels
           </div>
@@ -43,7 +44,7 @@ const SenderDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+        <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Delivered
           </div>
@@ -52,7 +53,7 @@ const SenderDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+        <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             In Transit
           </div>
@@ -61,7 +62,7 @@ const SenderDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="card shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
+        <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Cancelled
           </div>
@@ -74,23 +75,24 @@ const SenderDashboard: React.FC = () => {
       {/* Charts */}
       <div
         data-driver-id="charts"
-        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
+        className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-stretch"
       >
-        <div className="col-span-2 bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h4 className="mb-3 font-semibold text-slate-800 dark:text-white">
-            Monthly Shipments
-          </h4>
+        <div className="lg:col-span-2 h-full">
           <ShipmentsBarChart
             data={stats?.monthly ?? []}
             loading={statsLoading}
+            title="Monthly Shipments"
+            height={320}
           />
         </div>
 
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-700">
-          <h4 className="mb-3 font-semibold text-slate-800 dark:text-white">
-            Status Distribution
-          </h4>
-          <StatusPieChart stats={stats} loading={statsLoading} />
+        <div className="h-full">
+          <StatusPieChart
+            stats={stats}
+            loading={statsLoading}
+            title="Status Distribution"
+            height={320}
+          />
         </div>
       </div>
 

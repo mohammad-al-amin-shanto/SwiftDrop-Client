@@ -89,7 +89,7 @@ export const parcelsApi = baseApi.injectEndpoints({
             type: "Parcel" as const,
             id: p._id,
           })),
-          { type: "Parcel", id: "LIST" },
+          { type: "Parcel" as const, id: "LIST" },
         ];
       },
     }),
@@ -109,7 +109,7 @@ export const parcelsApi = baseApi.injectEndpoints({
       // Works with Parcel or { status, data: Parcel }
       transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
         unwrap<Parcel>(response),
-      invalidatesTags: [{ type: "Parcel", id: "LIST" }],
+      invalidatesTags: [{ type: "Parcel" as const, id: "LIST" }],
     }),
 
     // ✅ Use PUT to match routes like: router.put("/:id/status", ...)
@@ -125,9 +125,11 @@ export const parcelsApi = baseApi.injectEndpoints({
       // Works with Parcel or { status, data: Parcel }
       transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
         unwrap<Parcel>(response),
+      // ❗ Invalidate list + item + stats so charts refresh
       invalidatesTags: (_result, _error, arg) => [
-        { type: "Parcel", id: arg.id },
-        { type: "Parcel", id: "LIST" },
+        { type: "Parcel" as const, id: arg.id },
+        { type: "Parcel" as const, id: "LIST" },
+        { type: "Parcel" as const, id: "STATS" },
       ],
     }),
 
@@ -137,9 +139,11 @@ export const parcelsApi = baseApi.injectEndpoints({
       // Works with Parcel or { status, data: Parcel }
       transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
         unwrap<Parcel>(response),
+      // ❗ Also invalidate stats here
       invalidatesTags: (_result, _error, arg) => [
-        { type: "Parcel", id: arg.id },
-        { type: "Parcel", id: "LIST" },
+        { type: "Parcel" as const, id: arg.id },
+        { type: "Parcel" as const, id: "LIST" },
+        { type: "Parcel" as const, id: "STATS" },
       ],
     }),
 
@@ -152,7 +156,7 @@ export const parcelsApi = baseApi.injectEndpoints({
       transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
         unwrap<Parcel>(response),
       providesTags: (result) =>
-        result ? [{ type: "Parcel", id: result._id }] : [],
+        result ? [{ type: "Parcel" as const, id: result._id }] : [],
     }),
 
     // Aggregates for charts / dashboard
@@ -181,7 +185,8 @@ export const parcelsApi = baseApi.injectEndpoints({
           monthly: Array.isArray(monthly) ? monthly : [],
         };
       },
-      providesTags: [{ type: "Parcel", id: "STATS" }],
+      // 👇 This is the tag we invalidate from mutations
+      providesTags: [{ type: "Parcel" as const, id: "STATS" }],
     }),
   }),
 });

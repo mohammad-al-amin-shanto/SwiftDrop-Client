@@ -40,12 +40,22 @@ function useDebounce<T>(value: T, delay = 400) {
 function getErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;
+
   if (typeof err === "object" && err !== null) {
     const obj = err as Record<string, unknown>;
     const data = obj["data"] as Record<string, unknown> | undefined;
-    if (data && typeof data.message === "string") return data.message;
+
+    if (data) {
+      if (typeof data.message === "string") return data.message;
+      if (Array.isArray(data.errorMessages) && data.errorMessages.length > 0) {
+        const first = data.errorMessages[0] as { message?: string };
+        if (typeof first?.message === "string") return first.message;
+      }
+    }
     if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.error === "string") return obj.error;
   }
+
   return "An error occurred";
 }
 
@@ -164,54 +174,63 @@ export const ParcelTable: React.FC<Props> = ({
   };
 
   const handleCancel = async (id: string) => {
-    if (!confirm("Cancel this parcel? This action cannot be undone.")) return;
     try {
       await cancelParcel({ id }).unwrap();
       toast.success("Parcel cancelled");
       refetch();
     } catch (err: unknown) {
+      console.error("Cancel parcel error:", err);
       toast.error(getErrorMessage(err));
     }
   };
 
-  // 👇 HERE is where we decide how statuses change
-  const getNextStatus = (current: string | undefined): string | null => {
-    switch (current) {
-      case "pending":
-        return "collected";
-      case "collected":
-        return "dispatched";
-      case "dispatched":
-        return "in_transit";
-      case "in_transit":
-        return "delivered";
-      default:
-        return null; // delivered / cancelled / unknown
-    }
-  };
-
+  // ✅ Confirm handler: step-wise status transitions, lowercase to match backend
   const handleConfirm = async (parcel: Parcel) => {
-    const nextStatus = getNextStatus(parcel.status);
+    const id = parcel._id;
+    const currentRaw = parcel.status ?? "";
+    const current = currentRaw.toLowerCase();
 
-    if (!nextStatus) {
-      toast.info("This parcel cannot be advanced further.");
-      return;
+    let nextStatus: string;
+
+    switch (current) {
+      case "created":
+        // first move: created → pending
+        nextStatus = "pending";
+        break;
+      case "pending":
+        // then: pending → collected
+        nextStatus = "collected";
+        break;
+      case "collected":
+        // then: collected → dispatched
+        nextStatus = "dispatched";
+        break;
+      case "dispatched":
+      case "intransit":
+      case "in_transit":
+        // final hop: dispatched/in_transit → delivered
+        nextStatus = "delivered";
+        break;
+      case "delivered":
+      case "cancelled":
+        toast.info("This parcel is already in a final state.");
+        return;
+      default:
+        // any weird legacy value → push to delivered
+        nextStatus = "delivered";
+        break;
     }
-
-    const ok = confirm(
-      `Change status from "${parcel.status ?? "-"}" to "${nextStatus}"?`
-    );
-    if (!ok) return;
 
     try {
       await updateStatus({
-        id: parcel._id,
+        id,
         status: nextStatus,
-        note: `Status changed from ${parcel.status} to ${nextStatus} via UI`,
+        note: `Status changed from "${currentRaw}" to "${nextStatus}" via UI`,
       }).unwrap();
-      toast.success(`Parcel status updated to "${nextStatus}".`);
+      toast.success(`Parcel status updated to "${nextStatus}"`);
       refetch();
     } catch (err: unknown) {
+      console.error("Update status error:", err);
       toast.error(getErrorMessage(err));
     }
   };
@@ -280,7 +299,7 @@ export const ParcelTable: React.FC<Props> = ({
               setLimit(Number(e.target.value));
               setPage(1);
             }}
-            className="text-sm border rounded px-2 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white w-20"
+            className="text-sm md:text-base border rounded px-2 py-2 bg-white dark:bg-slate-700 text-slate-900 dark:text-white w-20"
             aria-label="Items per page"
           >
             <option value={5}>5</option>
@@ -396,7 +415,9 @@ export const ParcelTable: React.FC<Props> = ({
             )
           )
         ) : isError ? (
-          <div className="p-4 text-red-500">Error loading parcels.</div>
+          <div className="p-4 text-red-500">
+            Error loading parcels: {getErrorMessage(error)}
+          </div>
         ) : parcels.length === 0 ? (
           <div className="p-4 text-sm text-slate-500">No parcels found.</div>
         ) : (
@@ -404,13 +425,19 @@ export const ParcelTable: React.FC<Props> = ({
             const withRelations = p as ParcelWithRelations;
             const receiver = withRelations.receiver ?? withRelations.receiverId;
 
-            const canCancelMobile =
-              p.status !== "dispatched" &&
-              p.status !== "delivered" &&
-              p.status !== "cancelled";
+            const statusLower = (p.status ?? "").toLowerCase();
 
-            const canConfirmMobile =
-              p.status !== "delivered" && p.status !== "cancelled";
+            const canCancelMobile = ![
+              "dispatched",
+              "delivered",
+              "cancelled",
+              "in_transit",
+              "intransit",
+            ].includes(statusLower);
+
+            const canConfirmMobile = !["delivered", "cancelled"].includes(
+              statusLower
+            );
 
             return (
               <article
@@ -458,33 +485,43 @@ export const ParcelTable: React.FC<Props> = ({
                     View
                   </button>
 
-                  {/* CONFIRM BUTTON */}
-                  {canConfirmMobile && (
-                    <button
-                      onClick={() => handleConfirm(p)}
-                      className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
-                        bg-green-600 hover:bg-green-700
-                        text-white
-                        border border-transparent"
-                      aria-label={`Confirm parcel ${p.trackingId}`}
-                    >
-                      Confirm
-                    </button>
-                  )}
+                  {/* CONFIRM BUTTON - always visible, disabled when not allowed */}
+                  <button
+                    onClick={() => {
+                      if (canConfirmMobile) handleConfirm(p);
+                    }}
+                    disabled={!canConfirmMobile}
+                    aria-disabled={!canConfirmMobile}
+                    className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
+                      ${
+                        canConfirmMobile
+                          ? "bg-green-600 hover:bg-green-700 text-white border-transparent"
+                          : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
+                      }
+                    `}
+                    aria-label={`Confirm parcel ${p.trackingId}`}
+                  >
+                    Confirm
+                  </button>
 
-                  {/* CANCEL BUTTON */}
-                  {canCancelMobile && (
-                    <button
-                      onClick={() => handleCancel(p._id)}
-                      className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
-                        bg-red-600 hover:bg-red-700
-                        text-white
-                        border border-transparent"
-                      aria-label={`Cancel parcel ${p.trackingId}`}
-                    >
-                      Cancel
-                    </button>
-                  )}
+                  {/* CANCEL BUTTON - always visible, disabled when not allowed */}
+                  <button
+                    onClick={() => {
+                      if (canCancelMobile) handleCancel(p._id);
+                    }}
+                    disabled={!canCancelMobile}
+                    aria-disabled={!canCancelMobile}
+                    className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
+                      ${
+                        canCancelMobile
+                          ? "bg-red-600 hover:bg-red-700 text-white border-transparent"
+                          : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
+                      }
+                    `}
+                    aria-label={`Cancel parcel ${p.trackingId}`}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </article>
             );
