@@ -19,6 +19,11 @@ type Props = { stats?: Stats | null; loading?: boolean };
 
 const COLORS = ["#34D399", "#60A5FA", "#F59E0B", "#EF4444"];
 
+/**
+ * StatusPieChart
+ * - Root wrapper has explicit height + w-full + min-w-0
+ *   so ResponsiveContainer always gets a valid size.
+ */
 const StatusPieChart: React.FC<Props> = ({ stats = null, loading = false }) => {
   const total = stats?.total ?? 0;
   const delivered = stats?.delivered ?? 0;
@@ -38,7 +43,7 @@ const StatusPieChart: React.FC<Props> = ({ stats = null, loading = false }) => {
   if (loading) {
     return (
       <div
-        className="w-full"
+        className="w-full min-w-0"
         style={{
           height: 240,
           display: "flex",
@@ -56,7 +61,7 @@ const StatusPieChart: React.FC<Props> = ({ stats = null, loading = false }) => {
   if (!hasData) {
     return (
       <div
-        className="w-full"
+        className="w-full min-w-0"
         style={{
           height: 240,
           display: "flex",
@@ -70,7 +75,12 @@ const StatusPieChart: React.FC<Props> = ({ stats = null, loading = false }) => {
   }
 
   return (
-    <div style={{ width: "100%", height: 240 }}>
+    <div
+      className="w-full min-w-0"
+      style={{
+        height: 240,
+      }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie

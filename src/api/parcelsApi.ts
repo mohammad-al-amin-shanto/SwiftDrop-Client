@@ -10,14 +10,55 @@ type ListParcelsParams = {
   sort?: string;
   senderId?: string;
   receiverId?: string;
+  // sent from ParcelTable
+  dateRange?: "7d" | "30d" | "90d" | "all";
 };
+
+type PaginatedParcelsResponse = {
+  data: Parcel[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+// Generic backend response: { status, data }
+type ApiResponse<T> = {
+  status: "success" | "fail" | "error";
+  message?: string;
+  data: T;
+};
+
+type ParcelsStatsInner = {
+  total: number;
+  delivered: number;
+  inTransit: number;
+  cancelled?: number;
+  monthly: { month: string; count: number }[];
+};
+
+// Type guard to check if something is ApiResponse<T>
+function isApiResponse<T>(response: unknown): response is ApiResponse<T> {
+  if (
+    typeof response === "object" &&
+    response !== null &&
+    "data" in (response as Record<string, unknown>)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+// Helper to handle both raw and wrapped responses safely
+function unwrap<T>(response: T | ApiResponse<T>): T {
+  if (isApiResponse<T>(response)) {
+    return response.data;
+  }
+  return response as T;
+}
 
 export const parcelsApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    listParcels: build.query<
-      { data: Parcel[]; total: number; page: number; limit: number },
-      ListParcelsParams
-    >({
+    listParcels: build.query<PaginatedParcelsResponse, ListParcelsParams>({
       query: (params = {}) => {
         const searchParams = new URLSearchParams();
         if (params.page) searchParams.set("page", String(params.page));
@@ -28,9 +69,19 @@ export const parcelsApi = baseApi.injectEndpoints({
         if (params.senderId) searchParams.set("senderId", params.senderId);
         if (params.receiverId)
           searchParams.set("receiverId", params.receiverId);
+        if (params.dateRange) searchParams.set("dateRange", params.dateRange);
+
         const qs = searchParams.toString();
         return { url: `/parcels${qs ? `?${qs}` : ""}`, method: "GET" };
       },
+      // Works with either:
+      // - { data, total, page, limit }
+      // - { status, data: { data, total, page, limit } }
+      transformResponse: (
+        response:
+          | PaginatedParcelsResponse
+          | ApiResponse<PaginatedParcelsResponse>
+      ) => unwrap<PaginatedParcelsResponse>(response),
       providesTags: (result) => {
         const list = result?.data ?? [];
         return [
@@ -45,6 +96,9 @@ export const parcelsApi = baseApi.injectEndpoints({
 
     getParcel: build.query<Parcel, { id: string }>({
       query: ({ id }) => ({ url: `/parcels/${id}`, method: "GET" }),
+      // Works with Parcel or { status, data: Parcel }
+      transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
+        unwrap<Parcel>(response),
       providesTags: (_result, _error, arg) => [
         { type: "Parcel" as const, id: arg.id },
       ],
@@ -52,26 +106,37 @@ export const parcelsApi = baseApi.injectEndpoints({
 
     createParcel: build.mutation<Parcel, ParcelCreateDto>({
       query: (body) => ({ url: "/parcels", method: "POST", body }),
+      // Works with Parcel or { status, data: Parcel }
+      transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
+        unwrap<Parcel>(response),
       invalidatesTags: [{ type: "Parcel", id: "LIST" }],
     }),
 
+    // ✅ Use PUT to match routes like: router.put("/:id/status", ...)
     updateParcelStatus: build.mutation<
       Parcel,
       { id: string; status: string; note?: string }
     >({
       query: ({ id, status, note }) => ({
         url: `/parcels/${id}/status`,
-        method: "PATCH",
+        method: "PUT",
         body: { status, note },
       }),
+      // Works with Parcel or { status, data: Parcel }
+      transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
+        unwrap<Parcel>(response),
       invalidatesTags: (_result, _error, arg) => [
         { type: "Parcel", id: arg.id },
         { type: "Parcel", id: "LIST" },
       ],
     }),
 
-    cancelParcel: build.mutation<{ success: boolean }, { id: string }>({
-      query: ({ id }) => ({ url: `/parcels/${id}/cancel`, method: "PATCH" }),
+    // ✅ Use PUT to match routes like: router.put("/:id/cancel", ...)
+    cancelParcel: build.mutation<Parcel, { id: string }>({
+      query: ({ id }) => ({ url: `/parcels/${id}/cancel`, method: "PUT" }),
+      // Works with Parcel or { status, data: Parcel }
+      transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
+        unwrap<Parcel>(response),
       invalidatesTags: (_result, _error, arg) => [
         { type: "Parcel", id: arg.id },
         { type: "Parcel", id: "LIST" },
@@ -83,6 +148,9 @@ export const parcelsApi = baseApi.injectEndpoints({
         url: `/parcels/track/${trackingId}`,
         method: "GET",
       }),
+      // Works with Parcel or { status, data: Parcel }
+      transformResponse: (response: Parcel | ApiResponse<Parcel>) =>
+        unwrap<Parcel>(response),
       providesTags: (result) =>
         result ? [{ type: "Parcel", id: result._id }] : [],
     }),
@@ -99,6 +167,20 @@ export const parcelsApi = baseApi.injectEndpoints({
       void
     >({
       query: () => ({ url: "/parcels/stats", method: "GET" }),
+      // Works with ParcelsStatsInner or { status, data: ParcelsStatsInner }
+      transformResponse: (
+        response: ParcelsStatsInner | ApiResponse<ParcelsStatsInner>
+      ) => {
+        const data = unwrap<ParcelsStatsInner>(response) ?? {};
+        const { total, delivered, inTransit, monthly, cancelled } = data;
+        return {
+          total: total ?? 0,
+          delivered: delivered ?? 0,
+          inTransit: inTransit ?? 0,
+          cancelled: cancelled ?? 0,
+          monthly: Array.isArray(monthly) ? monthly : [],
+        };
+      },
       providesTags: [{ type: "Parcel", id: "STATS" }],
     }),
   }),

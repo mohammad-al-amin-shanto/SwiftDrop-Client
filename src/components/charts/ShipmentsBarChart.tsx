@@ -14,8 +14,8 @@ type Props = { data?: MonthPoint[] | null; loading?: boolean };
 
 /**
  * ShipmentsBarChart
- * - Ensure the wrapper has an explicit height so ResponsiveContainer can measure.
- * - ResponsiveContainer uses width="100%" height="100%" so it fills the wrapper.
+ * - Root wrapper has explicit height + w-full + min-w-0
+ *   so ResponsiveContainer always gets a valid size.
  */
 const ShipmentsBarChart: React.FC<Props> = ({ data = [], loading = false }) => {
   const hasData = Array.isArray(data) && data.length > 0;
@@ -23,7 +23,7 @@ const ShipmentsBarChart: React.FC<Props> = ({ data = [], loading = false }) => {
   if (loading) {
     return (
       <div
-        className="w-full"
+        className="w-full min-w-0"
         style={{
           height: 280,
           display: "flex",
@@ -41,7 +41,7 @@ const ShipmentsBarChart: React.FC<Props> = ({ data = [], loading = false }) => {
   if (!hasData) {
     return (
       <div
-        className="w-full"
+        className="w-full min-w-0"
         style={{
           height: 280,
           display: "flex",
@@ -55,8 +55,12 @@ const ShipmentsBarChart: React.FC<Props> = ({ data = [], loading = false }) => {
   }
 
   return (
-    // explicit height so ResponsiveContainer can calculate sizes
-    <div style={{ width: "100%", height: 280 }}>
+    <div
+      className="w-full min-w-0"
+      style={{
+        height: 280,
+      }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />

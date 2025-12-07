@@ -18,6 +18,14 @@ type PersonLike = {
   [k: string]: unknown;
 };
 
+/** Parcel shape extended with possible sender/receiver variants */
+type ParcelWithRelations = Parcel & {
+  receiver?: User | PersonLike | string;
+  receiverId?: User | PersonLike | string;
+  sender?: User | PersonLike | string;
+  senderId?: User | PersonLike | string;
+};
+
 /** Local debounce hook */
 function useDebounce<T>(value: T, delay = 400) {
   const [debounced, setDebounced] = useState<T>(value);
@@ -64,12 +72,6 @@ function getPersonAddress(p: User | string | PersonLike | undefined) {
 /**
  * Normalize the `useListParcelsQuery` response into:
  *   { parcels: Parcel[], total: number }
- *
- * Supports shapes like:
- *   - { data: Parcel[], total }
- *   - { items: Parcel[], total }
- *   - { status, data: Parcel[], meta: { total } }
- *   - Parcel[]
  */
 function normalizeListResponse(raw: unknown): {
   parcels: Parcel[];
@@ -77,7 +79,6 @@ function normalizeListResponse(raw: unknown): {
 } {
   if (!raw) return { parcels: [], total: 0 };
 
-  // If it's already an array of parcels
   if (Array.isArray(raw)) {
     return { parcels: raw as Parcel[], total: raw.length };
   }
@@ -96,7 +97,6 @@ function normalizeListResponse(raw: unknown): {
     ? (resultsField as Parcel[])
     : [];
 
-  // total may be on top-level or inside meta
   const meta = obj["meta"] as { total?: number } | undefined;
   const total =
     typeof obj["total"] === "number"
@@ -149,10 +149,8 @@ export const ParcelTable: React.FC<Props> = ({
   const [cancelParcel] = useCancelParcelMutation();
   const [updateStatus] = useUpdateParcelStatusMutation();
 
-  // Normalize response
   const { parcels, total } = normalizeListResponse(data);
 
-  // show a one-time toast for load error
   useEffect(() => {
     if (isError) {
       const msg = getErrorMessage(error);
@@ -176,15 +174,42 @@ export const ParcelTable: React.FC<Props> = ({
     }
   };
 
-  const handleConfirm = async (id: string) => {
-    if (!confirm("Confirm delivery of this parcel?")) return;
+  // 👇 HERE is where we decide how statuses change
+  const getNextStatus = (current: string | undefined): string | null => {
+    switch (current) {
+      case "pending":
+        return "collected";
+      case "collected":
+        return "dispatched";
+      case "dispatched":
+        return "in_transit";
+      case "in_transit":
+        return "delivered";
+      default:
+        return null; // delivered / cancelled / unknown
+    }
+  };
+
+  const handleConfirm = async (parcel: Parcel) => {
+    const nextStatus = getNextStatus(parcel.status);
+
+    if (!nextStatus) {
+      toast.info("This parcel cannot be advanced further.");
+      return;
+    }
+
+    const ok = confirm(
+      `Change status from "${parcel.status ?? "-"}" to "${nextStatus}"?`
+    );
+    if (!ok) return;
+
     try {
       await updateStatus({
-        id,
-        status: "delivered",
-        note: "Confirmed via UI",
+        id: parcel._id,
+        status: nextStatus,
+        note: `Status changed from ${parcel.status} to ${nextStatus} via UI`,
       }).unwrap();
-      toast.success("Parcel confirmed delivered");
+      toast.success(`Parcel status updated to "${nextStatus}".`);
       refetch();
     } catch (err: unknown) {
       toast.error(getErrorMessage(err));
@@ -268,14 +293,14 @@ export const ParcelTable: React.FC<Props> = ({
             disabled={isFetching}
             aria-disabled={isFetching}
             className="
-    inline-flex items-center px-3 py-2 rounded text-sm
-    border border-slate-300 dark:border-slate-600
-    bg-white dark:bg-slate-700
-    text-slate-800 dark:text-slate-100
-    hover:bg-slate-50 dark:hover:bg-slate-600
-    disabled:opacity-50 disabled:cursor-not-allowed
-    focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
-  "
+              inline-flex items-center px-3 py-2 rounded text-sm
+              border border-slate-300 dark:border-slate-600
+              bg-white dark:bg-slate-700
+              text-slate-800 dark:text-slate-100
+              hover:bg-slate-50 dark:hover:bg-slate-600
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
+            "
           >
             Refresh
           </button>
@@ -375,80 +400,95 @@ export const ParcelTable: React.FC<Props> = ({
         ) : parcels.length === 0 ? (
           <div className="p-4 text-sm text-slate-500">No parcels found.</div>
         ) : (
-          parcels.map((p) => (
-            <article
-              key={p._id}
-              className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded p-3"
-              aria-labelledby={`parcel-${p._id}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3
-                    id={`parcel-${p._id}`}
-                    className="font-medium text-sm md:text-base text-slate-800 dark:text-white"
-                  >
-                    {p.trackingId}
-                  </h3>
-                  <div className="text-xs text-slate-500 dark:text-slate-300">
-                    {getPersonName(p.receiver)} • {getPersonPhone(p.receiver)}
+          parcels.map((p) => {
+            const withRelations = p as ParcelWithRelations;
+            const receiver = withRelations.receiver ?? withRelations.receiverId;
+
+            const canCancelMobile =
+              p.status !== "dispatched" &&
+              p.status !== "delivered" &&
+              p.status !== "cancelled";
+
+            const canConfirmMobile =
+              p.status !== "delivered" && p.status !== "cancelled";
+
+            return (
+              <article
+                key={p._id}
+                className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded p-3"
+                aria-labelledby={`parcel-${p._id}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3
+                      id={`parcel-${p._id}`}
+                      className="font-medium text-sm md:text-base text-slate-800 dark:text-white"
+                    >
+                      {p.trackingId}
+                    </h3>
+                    <div className="text-xs text-slate-500 dark:text-slate-300">
+                      {getPersonName(receiver)} • {getPersonPhone(receiver)}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-1">
+                      {getPersonAddress(receiver)}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
-                    {getPersonAddress(p.receiver)}
+
+                  <div className="text-right">
+                    <div className="text-sm font-medium">
+                      {p.weight ?? "-"} kg
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {p.status ?? "-"}
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-sm font-medium">
-                    {p.weight ?? "-"} kg
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {p.status ?? "-"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleView(p)}
-                  className="inline-flex items-center px-3 py-1 rounded text-sm border bg-transparent hover:bg-slate-50 dark:hover:bg-slate-600"
-                  aria-label={`View parcel ${p.trackingId}`}
-                >
-                  View
-                </button>
-
-                <button
-                  onClick={() => handleCancel(p._id)}
-                  className="inline-flex items-center px-3 py-1 rounded text-sm border bg-transparent hover:bg-red-50 text-red-600 dark:text-red-400"
-                  aria-label={`Cancel parcel ${p.trackingId}`}
-                >
-                  Cancel
-                </button>
-
-                {showConfirmAll && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {/* VIEW BUTTON */}
                   <button
-                    onClick={() => handleConfirm(p._id)}
-                    className="inline-flex items-center px-3 py-1 rounded text-sm border bg-green-600 text-white disabled:opacity-60"
-                    aria-label={`Confirm parcel ${p.trackingId}`}
+                    onClick={() => handleView(p)}
+                    className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
+                      bg-sky-600 hover:bg-sky-700
+                      dark:bg-sky-500 dark:hover:bg-sky-600
+                      text-white dark:text-white
+                      border border-transparent"
+                    aria-label={`View parcel ${p.trackingId}`}
                   >
-                    Confirm
+                    View
                   </button>
-                )}
 
-                <button
-                  onClick={() =>
-                    window.open(
-                      `/parcels/${p._id}`,
-                      "_blank",
-                      "noopener,noreferrer"
-                    )
-                  }
-                  className="inline-flex items-center px-3 py-1 rounded text-sm border bg-transparent"
-                >
-                  Open
-                </button>
-              </div>
-            </article>
-          ))
+                  {/* CONFIRM BUTTON */}
+                  {canConfirmMobile && (
+                    <button
+                      onClick={() => handleConfirm(p)}
+                      className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
+                        bg-green-600 hover:bg-green-700
+                        text-white
+                        border border-transparent"
+                      aria-label={`Confirm parcel ${p.trackingId}`}
+                    >
+                      Confirm
+                    </button>
+                  )}
+
+                  {/* CANCEL BUTTON */}
+                  {canCancelMobile && (
+                    <button
+                      onClick={() => handleCancel(p._id)}
+                      className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
+                        bg-red-600 hover:bg-red-700
+                        text-white
+                        border border-transparent"
+                      aria-label={`Cancel parcel ${p.trackingId}`}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
         )}
       </div>
 
@@ -464,14 +504,14 @@ export const ParcelTable: React.FC<Props> = ({
             disabled={page === 1}
             aria-disabled={page === 1}
             className="
-      inline-flex items-center px-3 py-1 rounded text-sm
-      border border-slate-300 dark:border-slate-600
-      bg-white dark:bg-slate-700
-      text-slate-800 dark:text-slate-100
-      hover:bg-slate-50 dark:hover:bg-slate-600
-      disabled:opacity-50 disabled:cursor-not-allowed
-      focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
-    "
+              inline-flex items-center px-3 py-1 rounded text-sm
+              border border-slate-300 dark:border-slate-600
+              bg-white dark:bg-slate-700
+              text-slate-800 dark:text-slate-100
+              hover:bg-slate-50 dark:hover:bg-slate-600
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
+            "
           >
             « First
           </button>
@@ -481,14 +521,14 @@ export const ParcelTable: React.FC<Props> = ({
             disabled={page === 1}
             aria-disabled={page === 1}
             className="
-      inline-flex items-center px-3 py-1 rounded text-sm
-      border border-slate-300 dark:border-slate-600
-      bg-white dark:bg-slate-700
-      text-slate-800 dark:text-slate-100
-      hover:bg-slate-50 dark:hover:bg-slate-600
-      disabled:opacity-50 disabled:cursor-not-allowed
-      focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
-    "
+              inline-flex items-center px-3 py-1 rounded text-sm
+              border border-slate-300 dark:border-slate-600
+              bg-white dark:bg-slate-700
+              text-slate-800 dark:text-slate-100
+              hover:bg-slate-50 dark:hover:bg-slate-600
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
+            "
           >
             ‹ Prev
           </button>
@@ -502,14 +542,14 @@ export const ParcelTable: React.FC<Props> = ({
             disabled={page === totalPages}
             aria-disabled={page === totalPages}
             className="
-      inline-flex items-center px-3 py-1 rounded text-sm
-      border border-slate-300 dark:border-slate-600
-      bg-white dark:bg-slate-700
-      text-slate-800 dark:text-slate-100
-      hover:bg-slate-50 dark:hover:bg-slate-600
-      disabled:opacity-50 disabled:cursor-not-allowed
-      focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
-    "
+              inline-flex items-center px-3 py-1 rounded text-sm
+              border border-slate-300 dark:border-slate-600
+              bg-white dark:bg-slate-700
+              text-slate-800 dark:text-slate-100
+              hover:bg-slate-50 dark:hover:bg-slate-600
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
+            "
           >
             Next ›
           </button>
@@ -519,14 +559,14 @@ export const ParcelTable: React.FC<Props> = ({
             disabled={page === totalPages}
             aria-disabled={page === totalPages}
             className="
-      inline-flex items-center px-3 py-1 rounded text-sm
-      border border-slate-300 dark:border-slate-600
-      bg-white dark:bg-slate-700
-      text-slate-800 dark:text-slate-100
-      hover:bg-slate-50 dark:hover:bg-slate-600
-      disabled:opacity-50 disabled:cursor-not-allowed
-      focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
-    "
+              inline-flex items-center px-3 py-1 rounded text-sm
+              border border-slate-300 dark:border-slate-600
+              bg-white dark:bg-slate-700
+              text-slate-800 dark:text-slate-100
+              hover:bg-slate-50 dark:hover:bg-slate-600
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-1
+            "
           >
             Last »
           </button>
@@ -557,6 +597,10 @@ function ParcelViewModal() {
 
   if (!open || !parcel) return null;
 
+  const extended = parcel as ParcelWithRelations;
+  const receiver = extended.receiver ?? extended.receiverId;
+  const sender = extended.sender ?? extended.senderId;
+
   return (
     <div
       role="dialog"
@@ -582,20 +626,19 @@ function ParcelViewModal() {
           <div>
             <div className="text-sm text-slate-500">Receiver</div>
             <div className="font-medium">
-              {getPersonName(parcel.receiver)} —{" "}
-              {getPersonPhone(parcel.receiver)}
+              {getPersonName(receiver)} — {getPersonPhone(receiver)}
             </div>
             <div className="text-sm mt-2 text-slate-600">
-              {getPersonAddress(parcel.receiver)}
+              {getPersonAddress(receiver)}
             </div>
           </div>
           <div>
             <div className="text-sm text-slate-500">Sender</div>
             <div className="font-medium">
-              {getPersonName(parcel.sender)} — {getPersonPhone(parcel.sender)}
+              {getPersonName(sender)} — {getPersonPhone(sender)}
             </div>
             <div className="text-sm mt-2 text-slate-600">
-              {getPersonAddress(parcel.sender)}
+              {getPersonAddress(sender)}
             </div>
           </div>
         </div>

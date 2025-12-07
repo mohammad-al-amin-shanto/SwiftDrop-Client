@@ -25,22 +25,48 @@ function getErrorMessage(err: unknown): string {
   return "An error occurred";
 }
 
-/** helpers to read person-like fields that may be `string | User | undefined` */
-function personName(p: User | string | undefined) {
+type PersonLike = {
+  name?: string;
+  phone?: string;
+  address?: string;
+  [k: string]: unknown;
+};
+
+/**
+ * Shape that extends Parcel with all the "maybe present" fields
+ * coming from different API versions.
+ */
+type ParcelWithExtras = Parcel & {
+  logs?: { status?: string }[];
+  statusLogs?: { status?: string }[];
+  sender?: User | PersonLike | string;
+  senderId?: User | PersonLike | string;
+  receiver?: User | PersonLike | string;
+  receiverId?: User | PersonLike | string;
+  cost?: number;
+  price?: number;
+  note?: string;
+  currentHandler?: PersonLike;
+};
+
+/** helpers to read person-like fields that may be `string | User | PersonLike | undefined` */
+function personName(p: User | string | PersonLike | undefined) {
   if (!p) return "-";
-  return typeof p === "string" ? p : p.name ?? "-";
+  if (typeof p === "string") return p;
+  const obj = p as PersonLike;
+  return obj.name ?? "-";
 }
-function personPhone(p: User | string | undefined) {
-  if (!p) return "-";
-  return typeof p === "string" ? "-" : p.phone ?? "-";
-}
-function personAddress(p: User | string | undefined) {
+function personPhone(p: User | string | PersonLike | undefined) {
   if (!p) return "-";
   if (typeof p === "string") return "-";
-  // address might be stored under different key; try `address` first
-  const obj = p as unknown as Record<string, unknown>;
-  const addr = obj["address"];
-  return typeof addr === "string" ? addr : "-";
+  const obj = p as PersonLike;
+  return typeof obj.phone === "string" ? obj.phone : "-";
+}
+function personAddress(p: User | string | PersonLike | undefined) {
+  if (!p) return "-";
+  if (typeof p === "string") return "-";
+  const obj = p as PersonLike;
+  return typeof obj.address === "string" ? obj.address : "-";
 }
 
 /** safely read arbitrary optional fields from parcel */
@@ -60,6 +86,9 @@ type Props = {
 const ParcelDetails: React.FC<Props> = ({ parcel, showActions = true }) => {
   const [updateStatus] = useUpdateParcelStatusMutation();
   const [cancelParcel] = useCancelParcelMutation();
+
+  // Single extended view of parcel without using `any`
+  const extended = parcel as ParcelWithExtras;
 
   const confirmDelivery = async () => {
     if (!confirm("Mark this parcel as delivered?")) return;
@@ -90,7 +119,6 @@ const ParcelDetails: React.FC<Props> = ({ parcel, showActions = true }) => {
     const raw = parcel.createdAt;
     if (!raw) return "-";
     try {
-      // cast to unknown before instanceof Date to satisfy TS
       if (
         typeof raw === "string" ||
         typeof raw === "number" ||
@@ -107,29 +135,39 @@ const ParcelDetails: React.FC<Props> = ({ parcel, showActions = true }) => {
     }
   })();
 
-  // prefer logs last entry, fallback to status
+  // logs may be `logs` (old) or `statusLogs` (new)
+  const logs: { status?: string }[] =
+    extended.logs ?? extended.statusLogs ?? [];
+
   const latestStatus =
-    Array.isArray(parcel.logs) && parcel.logs.length > 0
-      ? (parcel.logs[parcel.logs.length - 1] as { status?: string }).status ??
-        parcel.status
+    Array.isArray(logs) && logs.length > 0
+      ? logs[logs.length - 1]?.status ?? parcel.status
       : parcel.status;
 
   // sender/receiver may be either object or string depending on your API
-  const sender = parcel.sender as User | string | undefined;
-  const receiver = parcel.receiver as User | string | undefined;
+  const sender: User | string | PersonLike | undefined =
+    extended.sender ?? extended.senderId;
+  const receiver: User | string | PersonLike | undefined =
+    extended.receiver ?? extended.receiverId;
 
-  // weight/cost fields in your types are `weight` and `cost`
+  // weight/value — backend uses `price`, older types might use `cost`
   const weightDisplay =
     typeof parcel.weight === "number" ? `${parcel.weight} kg` : "-";
-  const costDisplay =
-    typeof parcel.cost === "number" ? `৳ ${parcel.cost}` : "-";
+
+  const rawCost: number | undefined =
+    typeof extended.cost === "number"
+      ? extended.cost
+      : typeof extended.price === "number"
+      ? extended.price
+      : undefined;
+
+  const costDisplay = typeof rawCost === "number" ? `৳ ${rawCost}` : "-";
 
   // optional fields coming from backend but not typed on Parcel
-  const note = parcelField<string>(parcel, "note");
-  const currentHandler = parcelField<Record<string, unknown>>(
-    parcel,
-    "currentHandler"
-  );
+  const note = extended.note ?? parcelField<string>(parcel, "note");
+  const currentHandler =
+    extended.currentHandler ??
+    parcelField<PersonLike | undefined>(parcel, "currentHandler");
 
   return (
     <div className="space-y-3">
@@ -178,8 +216,8 @@ const ParcelDetails: React.FC<Props> = ({ parcel, showActions = true }) => {
         <div>
           <div className="text-xs text-gray-500">Current Handler</div>
           <div className="font-medium">
-            {typeof currentHandler === "object" && currentHandler !== null
-              ? (currentHandler["name"] as string | undefined) ?? "-"
+            {currentHandler && typeof currentHandler === "object"
+              ? (currentHandler.name as string | undefined) ?? "-"
               : "-"}
           </div>
         </div>
