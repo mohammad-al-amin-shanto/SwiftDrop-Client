@@ -12,28 +12,21 @@ type Props = {
 
 const Navbar: React.FC<Props> = ({ onOpenSidebar }) => {
   const user = useAppSelector((s) => s.auth.user);
-  const isAuth = Boolean(user);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // choose path depending on auth state
-  const linkTo = (publicPath: string, dashboardPath: string) =>
-    isAuth ? dashboardPath : publicPath;
-
   const activeClass = "text-sky-600 font-semibold";
+  const baseLinkClass = "text-sm text-slate-700 dark:text-slate-200";
 
   const handleLogout = () => {
-    // clear persisted storage keys your app uses
     try {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      // localStorage.removeItem("persist:root"); // optional if used
     } catch (e) {
       console.warn("Failed to clear storage on logout", e);
     }
 
-    // update redux auth slice to logged-out state
     try {
       dispatch(setAuth({ token: null, user: null }));
     } catch (e) {
@@ -46,6 +39,7 @@ const Navbar: React.FC<Props> = ({ onOpenSidebar }) => {
   return (
     <nav className="w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Left: logo + sidebar toggle */}
         <div className="flex items-center gap-4">
           <button
             onClick={() => {
@@ -70,25 +64,31 @@ const Navbar: React.FC<Props> = ({ onOpenSidebar }) => {
 
         {/* Desktop links */}
         <div className="hidden md:flex items-center gap-6">
+          {/* About */}
           <NavLink
-            to={linkTo("/features", "/dashboard/features")}
-            className={({ isActive }) => (isActive ? activeClass : "text-sm")}
+            to="/about"
+            className={({ isActive }) =>
+              isActive ? activeClass : baseLinkClass
+            }
           >
-            Features
+            About
           </NavLink>
 
+          {/* Features */}
           <NavLink
-            to={linkTo("/tracking", "/dashboard/tracking")}
-            className={({ isActive }) => (isActive ? activeClass : "text-sm")}
+            to="/features"
+            className={({ isActive }) =>
+              isActive ? activeClass : baseLinkClass
+            }
           >
-            Track
+            Features
           </NavLink>
 
           {user ? (
             <>
               <NavLink
                 to="/profile"
-                className="flex items-center gap-2 text-sm"
+                className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
               >
                 <FaUserCircle />
                 <span>{user.name}</span>
@@ -113,7 +113,7 @@ const Navbar: React.FC<Props> = ({ onOpenSidebar }) => {
           )}
         </div>
 
-        {/* Mobile menu button area */}
+        {/* Mobile menu button (right) */}
         <div className="md:hidden">
           <button
             onClick={() => setMobileOpen((v) => !v)}
@@ -125,28 +125,33 @@ const Navbar: React.FC<Props> = ({ onOpenSidebar }) => {
         </div>
       </div>
 
-      {/* Mobile menu (dropdown) */}
+      {/* Mobile dropdown menu */}
       {mobileOpen && (
         <div className="md:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
           <div className="p-3 space-y-2">
             <NavLink
-              to={linkTo("/features", "/dashboard/features")}
+              to="/about"
               onClick={() => setMobileOpen(false)}
-              className="block"
+              className="block text-sm text-slate-700 dark:text-slate-200"
+            >
+              About
+            </NavLink>
+
+            <NavLink
+              to="/features"
+              onClick={() => setMobileOpen(false)}
+              className="block text-sm text-slate-700 dark:text-slate-200"
             >
               Features
-            </NavLink>
-            <NavLink
-              to={linkTo("/tracking", "/dashboard/tracking")}
-              onClick={() => setMobileOpen(false)}
-              className="block"
-            >
-              Track
             </NavLink>
 
             {user ? (
               <div className="flex items-center justify-between pt-2">
-                <NavLink to="/profile" className="flex items-center gap-2">
+                <NavLink
+                  to="/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"
+                >
                   <FaUserCircle />
                   <span>{user.name}</span>
                 </NavLink>

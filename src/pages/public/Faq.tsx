@@ -1,7 +1,6 @@
 // src/pages/public/Faq.tsx
 import React, { useMemo, useState } from "react";
 import { AppShell } from "../../components/layout/AppShell";
-import Footer from "../../components/layout/Footer";
 import Input from "../../components/common/Input";
 
 type FAQ = { q: string; a: string };
@@ -94,8 +93,6 @@ const Faq: React.FC = () => {
           )}
         </div>
       </div>
-
-      <Footer />
     </AppShell>
   );
 };

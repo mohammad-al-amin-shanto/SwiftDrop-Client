@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../app/hooks";
 import { selectIsAuthenticated } from "../../features/auth/authSelectors";
 import LoginForm from "../../components/auth/LoginForm";
+import AppShell from "../../components/layout/AppShell";
 
 /**
  * Minimal local type for the user object we care about here.
@@ -67,10 +68,11 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-12">
-      {/* pass handleSuccess to LoginForm (it's optional) so redirect is immediate */}
-      <LoginForm onSuccess={handleSuccess} />
-    </div>
+    <AppShell hideChrome>
+      <div className="max-w-md mx-auto mt-12">
+        <LoginForm onSuccess={handleSuccess} />
+      </div>
+    </AppShell>
   );
 };
 

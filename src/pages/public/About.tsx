@@ -62,25 +62,25 @@ const About: React.FC = () => {
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold">The team</h2>
           <p className="text-gray-600 dark:text-gray-300">
-            A small multidisciplinary team (ops, dev, and support) building
+            A small multidisciplinary team (Software, dev, and support) building
             SwiftDrop with a focus on reliability and usefulness.
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="bg-white dark:bg-slate-800 rounded p-4 text-center">
-              <div className="font-medium">Arif</div>
-              <div className="text-sm text-gray-500">Product</div>
+              <div className="font-medium">Abu Taher Saikat</div>
+              <div className="text-sm text-gray-500">Software Engineer</div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded p-4 text-center">
-              <div className="font-medium">Maya</div>
-              <div className="text-sm text-gray-500">Engineering</div>
+              <div className="font-medium">Mohammad AL Amin</div>
+              <div className="text-sm text-gray-500">Fullstack Developer</div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded p-4 text-center">
-              <div className="font-medium">Rafi</div>
-              <div className="text-sm text-gray-500">Ops</div>
+              <div className="font-medium">Arifur Rahman Shakil</div>
+              <div className="text-sm text-gray-500">Frontend Developer</div>
             </div>
             <div className="bg-white dark:bg-slate-800 rounded p-4 text-center">
-              <div className="font-medium">Nusrat</div>
+              <div className="font-medium">Fazla Rabbi</div>
               <div className="text-sm text-gray-500">Support</div>
             </div>
           </div>
