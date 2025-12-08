@@ -7,7 +7,6 @@ import ShipmentsBarChart from "../../components/charts/ShipmentsBarChart";
 import StatusPieChart from "../../components/charts/StatusPieChart";
 import Button from "../../components/common/Button";
 import { useParcelsStatsQuery } from "../../api/parcelsApi";
-import Footer from "../../components/layout/Footer";
 
 const Home: React.FC = () => {
   const { data: stats, isLoading } = useParcelsStatsQuery();
@@ -163,8 +162,6 @@ const Home: React.FC = () => {
           </div>
         </section>
       </main>
-
-      <Footer />
     </AppShell>
   );
 };

@@ -12,7 +12,20 @@ const SenderDashboard: React.FC = () => {
   const user = useAppSelector((s) => s.auth.user);
   const senderId = user?._id;
 
-  const { data: stats, isLoading: statsLoading } = useParcelsStatsQuery();
+  const {
+    data: stats,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+  } = useParcelsStatsQuery();
+
+  const statsLoading = isLoading || isFetching;
+
+  if (isError) {
+    // Optional: log / show a small error; don’t block rest of dashboard
+    console.error("Error loading parcel stats:", error);
+  }
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -35,39 +48,43 @@ const SenderDashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Total Parcels */}
         <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Total Parcels
           </div>
           <div className="text-2xl font-semibold text-slate-900 dark:text-white mt-1">
-            {stats?.total ?? "—"}
+            {statsLoading ? "…" : stats?.total ?? "—"}
           </div>
         </div>
 
+        {/* Delivered */}
         <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Delivered
           </div>
           <div className="text-2xl font-semibold text-green-600 dark:text-green-400 mt-1">
-            {stats?.delivered ?? "—"}
+            {statsLoading ? "…" : stats?.delivered ?? "—"}
           </div>
         </div>
 
+        {/* In Transit */}
         <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             In Transit
           </div>
           <div className="text-2xl font-semibold text-blue-600 dark:text-blue-400 mt-1">
-            {stats?.inTransit ?? "—"}
+            {statsLoading ? "…" : stats?.inTransit ?? "—"}
           </div>
         </div>
 
+        {/* Cancelled */}
         <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 rounded-xl hover:shadow-md transition">
           <div className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Cancelled
           </div>
           <div className="text-2xl font-semibold text-red-600 dark:text-red-400 mt-1">
-            {stats?.cancelled ?? "—"}
+            {statsLoading ? "…" : stats?.cancelled ?? "—"}
           </div>
         </div>
       </div>
@@ -77,22 +94,23 @@ const SenderDashboard: React.FC = () => {
         data-driver-id="charts"
         className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-stretch"
       >
-        <div className="lg:col-span-2 h-full">
+        {/* Bar chart (2/3 width on large) */}
+        <div className="lg:col-span-2 h-full bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <h2 className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200">
+            Monthly Shipments
+          </h2>
           <ShipmentsBarChart
             data={stats?.monthly ?? []}
             loading={statsLoading}
-            title="Monthly Shipments"
-            height={320}
           />
         </div>
 
-        <div className="h-full">
-          <StatusPieChart
-            stats={stats}
-            loading={statsLoading}
-            title="Status Distribution"
-            height={320}
-          />
+        {/* Pie chart (1/3 width on large) */}
+        <div className="h-full bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <h2 className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200">
+            Status Distribution
+          </h2>
+          <StatusPieChart stats={stats} loading={statsLoading} />
         </div>
       </div>
 
@@ -125,7 +143,7 @@ const SenderDashboard: React.FC = () => {
         <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">
           Your Parcels
         </h3>
-        <ParcelTable senderId={senderId} initialLimit={10} />
+        <ParcelTable senderId={senderId ?? undefined} initialLimit={10} />
       </div>
 
       <DashboardTour autostart={true} />

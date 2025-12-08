@@ -1,12 +1,21 @@
 // src/components/charts/StatusPieChart.tsx
-import React, { useRef, useState, useLayoutEffect } from "react";
-import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import React from "react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 type Stats = {
   total?: number;
   delivered?: number;
   inTransit?: number;
   cancelled?: number;
+  // Optional from backend; we'll still compute fallback if missing
+  pending?: number;
 };
 
 type Props = {
@@ -28,7 +37,15 @@ const StatusPieChart: React.FC<Props> = ({
   const delivered = stats?.delivered ?? 0;
   const inTransit = stats?.inTransit ?? 0;
   const cancelled = stats?.cancelled ?? 0;
-  const pending = Math.max(0, total - (delivered + inTransit + cancelled));
+
+  // Prefer backend `pending` if it exists, otherwise derive it
+  const pendingFromBackend =
+    typeof stats?.pending === "number" ? stats.pending : undefined;
+
+  const pending =
+    pendingFromBackend !== undefined
+      ? pendingFromBackend
+      : Math.max(0, total - (delivered + inTransit + cancelled));
 
   const data = [
     { name: "Delivered", value: delivered },
@@ -39,31 +56,7 @@ const StatusPieChart: React.FC<Props> = ({
 
   const hasData = data.some((d) => d.value > 0);
 
-  // measure container like the bar chart
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
-
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    if (typeof ResizeObserver === "undefined") return;
-
-    const el = containerRef.current;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      const { width, height } = entry.contentRect;
-      if (width > 0 && height > 0) {
-        setSize({ width, height });
-      }
-    });
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
+  // ⏳ Loading state with your card styles
   if (loading) {
     return (
       <div
@@ -80,6 +73,7 @@ const StatusPieChart: React.FC<Props> = ({
     );
   }
 
+  // 🚫 No data
   if (!hasData) {
     return (
       <div
@@ -96,8 +90,7 @@ const StatusPieChart: React.FC<Props> = ({
     );
   }
 
-  const ready = size.width > 0 && size.height > 0;
-
+  // ✅ Normal render using ResponsiveContainer (no ResizeObserver)
   return (
     <div
       className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"
@@ -112,20 +105,15 @@ const StatusPieChart: React.FC<Props> = ({
         )}
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0">
-        {!ready ? (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-xs text-slate-400">
-              Preparing chart layout…
-            </span>
-          </div>
-        ) : (
-          <PieChart width={size.width} height={size.height}>
+      {/* Chart area fills remaining height */}
+      <div className="flex-1 min-h-40">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
             <Pie
               dataKey="value"
               data={data}
-              innerRadius={Math.min(size.width, size.height) * 0.25}
-              outerRadius={Math.min(size.width, size.height) * 0.4}
+              innerRadius={40}
+              outerRadius={80}
               label
             >
               {data.map((_, idx) => (
@@ -135,7 +123,7 @@ const StatusPieChart: React.FC<Props> = ({
             <Tooltip />
             <Legend verticalAlign="bottom" height={32} />
           </PieChart>
-        )}
+        </ResponsiveContainer>
       </div>
     </div>
   );

@@ -50,58 +50,24 @@ const AppRoutes: React.FC = () => {
     return "/dashboard/sender";
   };
 
+  // When you hit "/", unauth → Home, auth → redirect to own dashboard
   const HomeOrRedirect: React.FC = () => {
     if (!isAuth) return <Home />;
     return <Navigate to={chooseDashboard()} replace />;
   };
 
-  const PublicOnly: React.FC<{ children: React.ReactNode }> = ({
-    children,
-  }) => {
-    if (isAuth) return <Navigate to={chooseDashboard()} replace />;
-    return <>{children}</>;
-  };
-
   return (
     <Routes>
-      {/* root */}
+      {/* Root landing route */}
       <Route path="/" element={<HomeOrRedirect />} />
 
-      {/* public pages */}
-      <Route
-        path="/about"
-        element={
-          <PublicOnly>
-            <About />
-          </PublicOnly>
-        }
-      />
-      <Route
-        path="/features"
-        element={
-          <PublicOnly>
-            <Features />
-          </PublicOnly>
-        }
-      />
-      <Route
-        path="/contact"
-        element={
-          <PublicOnly>
-            <Contact />
-          </PublicOnly>
-        }
-      />
-      <Route
-        path="/faq"
-        element={
-          <PublicOnly>
-            <Faq />
-          </PublicOnly>
-        }
-      />
+      {/* Public pages - accessible even when logged in */}
+      <Route path="/about" element={<About />} />
+      <Route path="/features" element={<Features />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/faq" element={<Faq />} />
 
-      {/* auth */}
+      {/* Auth routes */}
       <Route
         path="/auth/login"
         element={
@@ -129,7 +95,7 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* protected (AppShell) - keeps your dashboard nesting */}
+      {/* Protected dashboard section using AppShell */}
       <Route
         path="/dashboard"
         element={
@@ -142,15 +108,11 @@ const AppRoutes: React.FC = () => {
         <Route path="receiver" element={<ReceiverDashboard />} />
         <Route path="admin" element={<AdminDashboard />} />
         <Route path="tracking" element={<TrackingPage />} />
-
-        {/* dashboard-scoped features route so logged-in users can access features inside AppShell */}
-        <Route path="features" element={<Features />} />
-
-        {/* default */}
+        {/* default dashboard route */}
         <Route index element={<Navigate to="/dashboard/sender" replace />} />
       </Route>
 
-      {/* fallback */}
+      {/* Fallback */}
       <Route
         path="*"
         element={<Navigate to="/" replace state={{ from: location }} />}

@@ -1,6 +1,14 @@
 // src/components/charts/ShipmentsBarChart.tsx
-import React, { useRef, useState, useLayoutEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import React from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
 
 type MonthPoint = { month: string; count: number };
 
@@ -19,31 +27,7 @@ const ShipmentsBarChart: React.FC<Props> = ({
 }) => {
   const hasData = Array.isArray(data) && data.length > 0;
 
-  // Measure the inner chart container so we can give BarChart real width/height
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
-
-  useLayoutEffect(() => {
-    if (!containerRef.current) return;
-    if (typeof ResizeObserver === "undefined") return;
-
-    const el = containerRef.current;
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      const { width, height } = entry.contentRect;
-      if (width > 0 && height > 0) {
-        setSize({ width, height });
-      }
-    });
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
+  // 🔄 Loading state – keep your existing card look
   if (loading) {
     return (
       <div
@@ -60,6 +44,7 @@ const ShipmentsBarChart: React.FC<Props> = ({
     );
   }
 
+  // 🚫 No data
   if (!hasData) {
     return (
       <div
@@ -76,8 +61,7 @@ const ShipmentsBarChart: React.FC<Props> = ({
     );
   }
 
-  const ready = size.width > 0 && size.height > 0;
-
+  // ✅ Normal render with ResponsiveContainer
   return (
     <div
       className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"
@@ -88,22 +72,17 @@ const ShipmentsBarChart: React.FC<Props> = ({
         <span className="text-xs text-slate-400">Monthly</span>
       </div>
 
-      <div ref={containerRef} className="flex-1 min-h-0">
-        {!ready ? (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-xs text-slate-400">
-              Preparing chart layout…
-            </span>
-          </div>
-        ) : (
-          <BarChart width={size.width} height={size.height} data={data}>
+      {/* This area stretches to fill the remaining height */}
+      <div className="flex-1 min-h-40">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip />
             <Bar dataKey="count" name="Shipments" />
           </BarChart>
-        )}
+        </ResponsiveContainer>
       </div>
     </div>
   );

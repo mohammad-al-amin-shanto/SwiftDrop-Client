@@ -33,6 +33,7 @@ type ParcelsStatsInner = {
   delivered: number;
   inTransit: number;
   cancelled?: number;
+  pending?: number; // ✅ allow pending coming from backend
   monthly: { month: string; count: number }[];
 };
 
@@ -166,6 +167,7 @@ export const parcelsApi = baseApi.injectEndpoints({
         delivered: number;
         inTransit: number;
         cancelled: number;
+        pending?: number; // ✅ expose pending to frontend
         monthly: { month: string; count: number }[];
       },
       void
@@ -176,12 +178,14 @@ export const parcelsApi = baseApi.injectEndpoints({
         response: ParcelsStatsInner | ApiResponse<ParcelsStatsInner>
       ) => {
         const data = unwrap<ParcelsStatsInner>(response) ?? {};
-        const { total, delivered, inTransit, monthly, cancelled } = data;
+        const { total, delivered, inTransit, monthly, cancelled, pending } =
+          data;
         return {
           total: total ?? 0,
           delivered: delivered ?? 0,
           inTransit: inTransit ?? 0,
           cancelled: cancelled ?? 0,
+          pending, // ✅ pass it through (can be undefined)
           monthly: Array.isArray(monthly) ? monthly : [],
         };
       },

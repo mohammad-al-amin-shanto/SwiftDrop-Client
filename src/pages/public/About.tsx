@@ -1,7 +1,6 @@
 // src/pages/public/About.tsx
 import React from "react";
 import { AppShell } from "../../components/layout/AppShell";
-import Footer from "../../components/layout/Footer";
 
 const About: React.FC = () => {
   return (
@@ -87,8 +86,6 @@ const About: React.FC = () => {
           </div>
         </section>
       </div>
-
-      <Footer />
     </AppShell>
   );
 };

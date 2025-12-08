@@ -2,7 +2,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import { AppShell } from "../../components/layout/AppShell";
-import Footer from "../../components/layout/Footer";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import { toast } from "react-toastify";
@@ -123,8 +122,6 @@ const Contact: React.FC = () => {
           </div>
         </div>
       </div>
-
-      <Footer />
     </AppShell>
   );
 };
