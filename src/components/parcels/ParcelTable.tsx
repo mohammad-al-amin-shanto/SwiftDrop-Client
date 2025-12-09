@@ -124,6 +124,8 @@ type Props = {
   senderId?: string;
   receiverId?: string;
   showConfirmAll?: boolean;
+  /** When true, don't render own card wrapper – assume parent provides bg/border/padding */
+  embedded?: boolean;
 };
 
 export const ParcelTable: React.FC<Props> = ({
@@ -132,6 +134,7 @@ export const ParcelTable: React.FC<Props> = ({
   senderId,
   receiverId,
   showConfirmAll = false,
+  embedded = false,
 }) => {
   const [page, setPage] = useState<number>(initialPage);
   const [limit, setLimit] = useState<number>(initialLimit);
@@ -194,21 +197,17 @@ export const ParcelTable: React.FC<Props> = ({
 
     switch (current) {
       case "created":
-        // first move: created → pending
         nextStatus = "pending";
         break;
       case "pending":
-        // then: pending → collected
         nextStatus = "collected";
         break;
       case "collected":
-        // then: collected → dispatched
         nextStatus = "dispatched";
         break;
       case "dispatched":
       case "intransit":
       case "in_transit":
-        // final hop: dispatched/in_transit → delivered
         nextStatus = "delivered";
         break;
       case "delivered":
@@ -216,7 +215,6 @@ export const ParcelTable: React.FC<Props> = ({
         toast.info("This parcel is already in a final state.");
         return;
       default:
-        // any weird legacy value → push to delivered
         nextStatus = "delivered";
         break;
     }
@@ -236,9 +234,17 @@ export const ParcelTable: React.FC<Props> = ({
   };
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
+  const loading = isLoading || isFetching;
+  const empty = !loading && !isError && parcels.length === 0;
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
+    <div
+      className={
+        embedded
+          ? "w-full"
+          : "w-full bg-white dark:bg-slate-800 rounded-lg shadow p-4"
+      }
+    >
       {/* Controls */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -326,9 +332,9 @@ export const ParcelTable: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* TABLE for md+ */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="min-w-full text-left">
+      {/* TABLE for md+ (no horizontal scroll, table fits container width) */}
+      <div className="hidden md:block">
+        <table className="w-full text-left table-fixed">
           <thead>
             <tr className="text-xs text-slate-600 dark:text-slate-300">
               <th className="px-3 py-2">Tracking</th>
@@ -342,7 +348,7 @@ export const ParcelTable: React.FC<Props> = ({
           </thead>
 
           <tbody>
-            {isLoading || isFetching ? (
+            {loading ? (
               Array.from({ length: limit }).map((_, idx) => (
                 <tr key={idx} className="animate-pulse">
                   <td className="px-3 py-4">
@@ -374,7 +380,7 @@ export const ParcelTable: React.FC<Props> = ({
                   Error loading parcels: {getErrorMessage(error)}
                 </td>
               </tr>
-            ) : parcels.length === 0 ? (
+            ) : empty ? (
               <tr>
                 <td
                   colSpan={7}
@@ -399,9 +405,9 @@ export const ParcelTable: React.FC<Props> = ({
         </table>
       </div>
 
-      {/* CARD LIST for small screens */}
+      {/* CARD LIST for small screens (already vertical, no horizontal scroll) */}
       <div className="md:hidden space-y-3">
-        {isLoading || isFetching ? (
+        {loading ? (
           Array.from({ length: Math.max(3, Math.min(limit, 6)) }).map(
             (_, idx) => (
               <div
@@ -418,7 +424,7 @@ export const ParcelTable: React.FC<Props> = ({
           <div className="p-4 text-red-500">
             Error loading parcels: {getErrorMessage(error)}
           </div>
-        ) : parcels.length === 0 ? (
+        ) : empty ? (
           <div className="p-4 text-sm text-slate-500">No parcels found.</div>
         ) : (
           parcels.map((p) => {
@@ -449,7 +455,7 @@ export const ParcelTable: React.FC<Props> = ({
                   <div>
                     <h3
                       id={`parcel-${p._id}`}
-                      className="font-medium text-sm md:text-base text-slate-800 dark:text-white"
+                      className="font-medium text-sm md:text-base text-slate-800 dark:text-white break-all"
                     >
                       {p.trackingId}
                     </h3>
@@ -472,7 +478,6 @@ export const ParcelTable: React.FC<Props> = ({
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {/* VIEW BUTTON */}
                   <button
                     onClick={() => handleView(p)}
                     className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
@@ -485,7 +490,6 @@ export const ParcelTable: React.FC<Props> = ({
                     View
                   </button>
 
-                  {/* CONFIRM BUTTON - always visible, disabled when not allowed */}
                   <button
                     onClick={() => {
                       if (canConfirmMobile) handleConfirm(p);
@@ -504,7 +508,6 @@ export const ParcelTable: React.FC<Props> = ({
                     Confirm
                   </button>
 
-                  {/* CANCEL BUTTON - always visible, disabled when not allowed */}
                   <button
                     onClick={() => {
                       if (canCancelMobile) handleCancel(p._id);

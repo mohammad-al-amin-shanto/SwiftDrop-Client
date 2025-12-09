@@ -107,49 +107,67 @@ export const ParcelRow: React.FC<Props> = ({
 
   const statusColor =
     statusLower === "delivered"
-      ? "bg-green-100 text-green-700"
+      ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
       : statusLower === "cancelled"
-      ? "bg-red-100 text-red-700"
+      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
       : statusLower.includes("transit") || statusLower === "dispatched"
-      ? "bg-blue-100 text-blue-700"
-      : "bg-slate-100 text-slate-700";
+      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+      : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100";
 
   const showConfirmButton = showConfirm || !!onConfirm;
 
   return (
-    <tr className="border-b">
-      <td className="px-3 py-2 text-sm">{parcel.trackingId}</td>
-
-      <td className="px-3 py-2 text-sm">
-        <div className="font-medium">{receiverName}</div>
-        <div className="text-xs text-gray-500">{receiverPhone}</div>
+    <tr className="border-b border-slate-200 dark:border-slate-700 last:border-0">
+      {/* Tracking */}
+      <td className="px-2.5 py-2 text-sm text-slate-900 dark:text-slate-50 break-all">
+        {parcel.trackingId}
       </td>
 
-      <td className="px-3 py-2 text-sm">{weightDisplay}</td>
+      {/* Receiver */}
+      <td className="px-2.5 py-2 text-sm">
+        <div className="font-medium text-slate-900 dark:text-slate-50">
+          {receiverName}
+        </div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">
+          {receiverPhone}
+        </div>
+      </td>
 
-      {/* Status */}
-      <td className="px-3 py-2 text-sm">
+      {/* Weight – keep it compact & no wrap */}
+      <td className="px-2 py-2 text-xs sm:text-sm text-slate-800 dark:text-slate-100 whitespace-nowrap">
+        {weightDisplay}
+      </td>
+
+      {/* Status – slimmer pill */}
+      <td className="px-2 py-2 text-xs sm:text-sm whitespace-nowrap">
         <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColor}`}
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${statusColor}`}
         >
           {latestStatus}
         </span>
       </td>
 
-      <td className="px-3 py-2 text-sm">{costDisplay}</td>
+      {/* Value */}
+      <td className="px-2 py-2 text-xs sm:text-sm text-slate-800 dark:text-slate-100 whitespace-nowrap">
+        {costDisplay}
+      </td>
 
-      <td className="px-3 py-2 text-sm">{createdAtDisplay}</td>
+      {/* Created */}
+      <td className="px-2 py-2 text-xs sm:text-sm text-slate-800 dark:text-slate-100 whitespace-nowrap">
+        {createdAtDisplay}
+      </td>
 
-      <td className="px-3 py-2 text-sm">
-        <div className="flex gap-2">
+      {/* Actions – single row, compact, no wrap */}
+      <td className="px-2 py-2 text-xs sm:text-sm align-top">
+        <div className="flex justify-end gap-1.5 whitespace-nowrap">
           {/* VIEW BUTTON - always enabled */}
           <button
+            type="button"
             onClick={() => onView(parcel)}
-            className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
+            className="inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-semibold
               bg-sky-600 hover:bg-sky-700
               dark:bg-sky-500 dark:hover:bg-sky-600
-              text-white dark:text-white
-              border border-transparent"
+              text-white"
           >
             View
           </button>
@@ -157,18 +175,18 @@ export const ParcelRow: React.FC<Props> = ({
           {/* CONFIRM BUTTON - stays visible, disabled when not allowed */}
           {showConfirmButton && (
             <button
+              type="button"
               onClick={() => {
                 if (canConfirm) onConfirm?.(parcel);
               }}
               disabled={!canConfirm}
               aria-disabled={!canConfirm}
-              className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
+              className={`inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-semibold border
                 ${
                   canConfirm
                     ? "bg-green-600 hover:bg-green-700 text-white border-transparent"
-                    : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
-                }
-              `}
+                    : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
+                }`}
             >
               Confirm
             </button>
@@ -176,18 +194,18 @@ export const ParcelRow: React.FC<Props> = ({
 
           {/* CANCEL BUTTON - stays visible, disabled when not allowed */}
           <button
+            type="button"
             onClick={() => {
               if (canCancel) onCancel(parcel._id);
             }}
             disabled={!canCancel}
             aria-disabled={!canCancel}
-            className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
+            className={`inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-semibold border
               ${
                 canCancel
                   ? "bg-red-600 hover:bg-red-700 text-white border-transparent"
-                  : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
-              }
-            `}
+                  : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
+              }`}
           >
             Cancel
           </button>

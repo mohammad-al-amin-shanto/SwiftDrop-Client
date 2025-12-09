@@ -13,32 +13,42 @@ const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
   const role = user?.role ?? "guest";
   const isAuth = Boolean(user);
 
-  // helper: when logged in use dashboard equivalent, otherwise public path
-  const linkTo = (publicPath: string, dashboardPath: string) =>
-    isAuth ? dashboardPath : publicPath;
-
   const activeClass =
     "block py-2 px-3 rounded bg-sky-100 dark:bg-sky-900 text-sky-800 dark:text-white";
+  const baseLinkClass =
+    "block py-2 px-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200";
 
-  const items: Array<{ to: string; label: string; roles: string[] }> = [
-    { to: "/dashboard/sender", label: "Sender Dashboard", roles: ["sender"] },
-    {
+  /** -------------------------------
+   *  PUBLIC (LOGGED OUT) MENU
+   *--------------------------------*/
+  const publicItems: Array<{ to: string; label: string }> = [
+    { to: "/", label: "Home" },
+    { to: "/about", label: "About" },
+    { to: "/features", label: "Features" },
+  ];
+
+  /** -------------------------------
+   *  LOGGED-IN / ROLE-BASED MENU
+   *--------------------------------*/
+  const authedItems: Array<{ to: string; label: string }> = [];
+
+  if (role === "sender") {
+    authedItems.push({ to: "/dashboard/sender", label: "Sender Dashboard" });
+  } else if (role === "receiver") {
+    authedItems.push({
       to: "/dashboard/receiver",
       label: "Receiver Dashboard",
-      roles: ["receiver"],
-    },
-    { to: "/dashboard/admin", label: "Admin Dashboard", roles: ["admin"] },
-    {
-      to: linkTo("/tracking", "/dashboard/tracking"),
-      label: "Track Parcel",
-      roles: ["sender", "receiver", "admin", "guest"],
-    },
-    {
-      to: linkTo("/features", "/dashboard/features"),
-      label: "Features",
-      roles: ["guest", "sender", "receiver", "admin"],
-    },
-  ];
+    });
+  } else if (role === "admin") {
+    authedItems.push({ to: "/dashboard/admin", label: "Admin Dashboard" });
+  }
+
+  // Universal for all logged-in users
+  if (isAuth) {
+    authedItems.push({ to: "/dashboard/tracking", label: "Track Parcels" });
+  }
+
+  const itemsToRender = isAuth ? authedItems : publicItems;
 
   return (
     <aside
@@ -49,44 +59,44 @@ const Sidebar: React.FC<Props> = ({ open = true, onClose }) => {
     >
       <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="text-sm text-gray-500">Welcome</div>
-          <div className="font-semibold">{user?.name ?? "Guest"}</div>
+          <div className="text-sm text-gray-500 dark:text-slate-400">
+            Welcome
+          </div>
+          <div className="font-semibold text-slate-800 dark:text-slate-100">
+            {user?.name ?? "Guest"}
+          </div>
         </div>
 
-        {onClose ? (
+        {onClose && (
           <button
             onClick={onClose}
             aria-label="Close sidebar"
             className="ml-2 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sm"
-            title="Close"
           >
             ✕
           </button>
-        ) : null}
+        )}
       </div>
 
+      {/* Navigation */}
       <nav className="space-y-2">
-        {items.map((it) => {
-          const allowed = it.roles.includes(role) || it.roles.includes("guest");
-          if (!allowed) return null;
-          return (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              onClick={onClose}
-              className={({ isActive }) =>
-                isActive
-                  ? activeClass
-                  : "block py-2 px-3 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
-              }
-            >
-              {it.label}
-            </NavLink>
-          );
-        })}
+        {itemsToRender.map((it) => (
+          <NavLink
+            key={it.to}
+            to={it.to}
+            onClick={onClose}
+            className={({ isActive }) =>
+              isActive ? activeClass : baseLinkClass
+            }
+          >
+            {it.label}
+          </NavLink>
+        ))}
       </nav>
 
-      <div className="mt-6 text-xs text-gray-500">© SwiftDrop</div>
+      <div className="mt-6 text-xs text-gray-500 dark:text-slate-500">
+        © SwiftDrop
+      </div>
     </aside>
   );
 };
