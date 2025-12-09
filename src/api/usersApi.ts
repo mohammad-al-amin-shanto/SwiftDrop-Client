@@ -2,84 +2,100 @@
 import { baseApi } from "./baseApi";
 import type { User } from "../types";
 
-type ListUsersParams = {
-  page?: number;
-  limit?: number;
-  search?: string;
-  role?: string;
-  blocked?: boolean;
-};
-
-type ListUsersResponse = {
+// What the frontend will use everywhere
+export type ListUsersResponse = {
   data: User[];
   total: number;
   page: number;
   limit: number;
 };
 
-// Generic backend response: { status, data }
-type ApiResponse<T> = {
-  status: "success" | "fail" | "error";
-  message?: string;
-  data: T;
+// What the backend actually returns:
+// {
+//   items: User[];
+//   meta: { total, page, limit, pages }
+// }
+type ListUsersResponseRaw = {
+  items: User[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
 };
 
-// Type guard to check if something is ApiResponse<T>
-function isApiResponse<T>(response: unknown): response is ApiResponse<T> {
-  return (
-    typeof response === "object" &&
-    response !== null &&
-    "data" in (response as Record<string, unknown>)
-  );
-}
-
-// Helper to handle both raw and wrapped responses safely
-function unwrap<T>(response: T | ApiResponse<T>): T {
-  return isApiResponse<T>(response) ? response.data : (response as T);
-}
+export type ListUsersParams = {
+  page?: number;
+  limit?: number;
+  q?: string; // backend expects `q` for search
+  role?: string;
+  blocked?: boolean;
+};
 
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     listUsers: build.query<ListUsersResponse, ListUsersParams>({
-      query: (params = {}) => {
+      query: ({ page = 1, limit = 10, q, role, blocked } = {}) => {
         const qs = new URLSearchParams();
-        if (params.page) qs.set("page", String(params.page));
-        if (params.limit) qs.set("limit", String(params.limit));
-        if (params.search) qs.set("search", params.search || "");
-        if (params.role) qs.set("role", params.role);
-        if (typeof params.blocked === "boolean") {
-          qs.set("blocked", String(params.blocked));
+
+        if (page) qs.set("page", String(page));
+        if (limit) qs.set("limit", String(limit));
+        if (q) qs.set("q", q); // 👈 matches backend: req.query.q
+        if (role) qs.set("role", role);
+        if (typeof blocked === "boolean") {
+          qs.set("blocked", String(blocked));
         }
 
         const queryString = qs.toString();
+
         return {
           url: `/users${queryString ? `?${queryString}` : ""}`,
           method: "GET",
         };
       },
 
-      // Works with:
-      //  - { data: User[], total, page, limit }
-      //  - { status, data: { data: User[], total, page, limit } }
+      // Normalize backend shape → { data, total, page, limit }
       transformResponse: (
-        response: ListUsersResponse | ApiResponse<ListUsersResponse>
+        response: ListUsersResponseRaw | ListUsersResponse
       ): ListUsersResponse => {
-        const data = unwrap<ListUsersResponse>(response);
+        // If it's already normalized for some reason, just ensure defaults:
+        if ("data" in response && Array.isArray(response.data)) {
+          return {
+            data: response.data,
+            total:
+              typeof response.total === "number"
+                ? response.total
+                : response.data.length,
+            page: typeof response.page === "number" ? response.page : 1,
+            limit:
+              typeof response.limit === "number"
+                ? response.limit
+                : response.data.length || 10,
+          };
+        }
+
+        // Otherwise it's the raw backend shape { items, meta }
+        const raw = response as ListUsersResponseRaw;
+        const items = Array.isArray(raw.items) ? raw.items : [];
+        const meta = raw.meta ?? {
+          total: items.length,
+          page: 1,
+          limit: items.length || 10,
+          pages: 1,
+        };
+
         return {
-          data: Array.isArray(data.data) ? data.data : [],
-          total: typeof data.total === "number" ? data.total : 0,
-          page: typeof data.page === "number" ? data.page : 1,
-          limit: typeof data.limit === "number" ? data.limit : 10,
+          data: items,
+          total: typeof meta.total === "number" ? meta.total : items.length,
+          page: typeof meta.page === "number" ? meta.page : 1,
+          limit:
+            typeof meta.limit === "number" ? meta.limit : items.length || 10,
         };
       },
 
       providesTags: (result) => {
-        if (!result) {
-          return [{ type: "User" as const, id: "LIST" }];
-        }
-
-        const list = Array.isArray(result.data) ? result.data : [];
-
+        const list = result?.data ?? [];
         return [
           ...list.map((u) => ({ type: "User" as const, id: u._id })),
           { type: "User" as const, id: "LIST" },
@@ -106,6 +122,8 @@ export const usersApi = baseApi.injectEndpoints({
       ],
     }),
 
+    // NOTE: your backend has PUT /users/:id/block and /users/:id/unblock.
+    // I'm not touching this now since your current UI logic may rely on it.
     blockUser: build.mutation<
       { success: boolean },
       { id: string; block: boolean }
@@ -121,7 +139,6 @@ export const usersApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // Admin: optional assign delivery staff to parcel
     assignDelivery: build.mutation<
       { success: boolean },
       { userId: string; parcelId: string }
@@ -137,6 +154,7 @@ export const usersApi = baseApi.injectEndpoints({
       ],
     }),
   }),
+  overrideExisting: true,
 });
 
 export const {

@@ -4,62 +4,8 @@ import { useListUsersQuery } from "../../api/usersApi";
 import type { User } from "../../types";
 import UserRow from "./UserRow";
 
-/**
- * Normalize whatever the backend returns into:
- *   { users: User[], total, page, limit }
- *
- * Supports both:
- *  - { data: User[], total, page, limit }
- *  - { status, data: { data: User[], total, page, limit } }
- */
-function normalizeUsersResponse(raw: unknown): {
-  users: User[];
-  total: number;
-  page: number;
-  limit: number;
-} {
-  const empty = { users: [], total: 0, page: 1, limit: 10 };
-
-  if (!raw || typeof raw !== "object") return empty;
-
-  type InnerShape = {
-    data?: unknown;
-    total?: unknown;
-    page?: unknown;
-    limit?: unknown;
-  };
-
-  const obj = raw as InnerShape & { status?: unknown; data?: unknown };
-
-  // If shape is { status, data: { data, total, ... } }, unwrap one level
-  let inner: InnerShape = obj;
-  if (
-    "status" in obj &&
-    obj.data &&
-    typeof obj.data === "object" &&
-    obj.data !== null
-  ) {
-    const innerCandidate = obj.data as InnerShape;
-    if (
-      Array.isArray(innerCandidate.data) ||
-      typeof innerCandidate.total === "number"
-    ) {
-      inner = innerCandidate;
-    }
-  }
-
-  const dataField = inner.data;
-  const users = Array.isArray(dataField) ? (dataField as User[]) : [];
-  const total = typeof inner.total === "number" ? inner.total : users.length;
-  const page = typeof inner.page === "number" ? inner.page : 1;
-  const limit =
-    typeof inner.limit === "number"
-      ? inner.limit
-      : users.length > 0
-      ? users.length
-      : 10;
-
-  return { users, total, page, limit };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 /** Nicer error extraction without `any` */
@@ -67,14 +13,14 @@ function getErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;
 
-  if (typeof err === "object") {
+  if (isRecord(err)) {
     const obj = err as {
       data?: unknown;
       error?: unknown;
       message?: unknown;
     };
 
-    if (obj.data && typeof obj.data === "object") {
+    if (obj.data && isRecord(obj.data)) {
       const dataObj = obj.data as { message?: unknown };
       if (typeof dataObj.message === "string") return dataObj.message;
     }
@@ -90,6 +36,7 @@ function getErrorMessage(err: unknown): string {
 type UserWithFlags = User & {
   blocked?: boolean;
   isBlocked?: boolean;
+  shortId?: string;
 };
 
 export const UsersTable: React.FC = () => {
@@ -99,13 +46,15 @@ export const UsersTable: React.FC = () => {
   const [role, setRole] = useState<string>("");
   const [blocked, setBlocked] = useState<"all" | "blocked" | "active">("all");
 
+  // Backend expects `q` for search
   const params = useMemo(
     () => ({
       page,
       limit,
-      search,
+      q: search || undefined,
       role: role || undefined,
-      blocked: blocked === "all" ? undefined : blocked === "blocked",
+      blocked:
+        blocked === "all" ? undefined : blocked === "blocked" ? true : false,
     }),
     [page, limit, search, role, blocked]
   );
@@ -113,7 +62,10 @@ export const UsersTable: React.FC = () => {
   const { data, isLoading, isFetching, isError, error, refetch } =
     useListUsersQuery(params);
 
-  const { users, total } = normalizeUsersResponse(data as unknown);
+  console.log("Users API RTK data:", data);
+
+  const users: User[] = data?.data ?? [];
+  const total = data?.total ?? users.length;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   const loading = isLoading || isFetching;
@@ -190,10 +142,20 @@ export const UsersTable: React.FC = () => {
         </div>
       </div>
 
-      {/* TABLE for md+ screens (no horizontal scroll expected) */}
+      {/* TABLE for md+ screens */}
       <div className="hidden md:block">
         <div className="rounded-lg bg-white/80 dark:bg-slate-900/60">
           <table className="w-full border-collapse table-fixed">
+            {/* Column widths for more equal distribution & nice gap between Email / Role */}
+            <colgroup>
+              <col className="w-28" /> {/* ID */}
+              <col className="w-40" /> {/* Name */}
+              <col /> {/* Email - flex/remaining space */}
+              <col className="w-28" /> {/* Role */}
+              <col className="w-28" /> {/* Status */}
+              <col className="w-40" /> {/* Actions */}
+            </colgroup>
+
             <thead className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
               <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
                 <th className="px-3 py-2 text-left">ID</th>
@@ -213,7 +175,7 @@ export const UsersTable: React.FC = () => {
                     className="animate-pulse border-b border-slate-100 dark:border-slate-800"
                   >
                     <td className="px-3 py-3">
-                      <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+                      <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
                     </td>
                     <td className="px-3 py-3">
                       <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
@@ -260,7 +222,7 @@ export const UsersTable: React.FC = () => {
         </div>
       </div>
 
-      {/* CARD LIST for small screens (no horizontal scroll, stacked) */}
+      {/* CARD LIST for small screens */}
       <div className="md:hidden space-y-3">
         {loading ? (
           Array.from({ length: Math.max(3, Math.min(limit, 6)) }).map(
@@ -297,12 +259,16 @@ export const UsersTable: React.FC = () => {
                 ? extended.blocked
                 : false;
 
+            // 👇 Prefer shortId; fall back to Mongo _id if somehow missing
+            const displayId = extended.shortId || extended._id;
+
             return (
               <article
                 key={u._id}
                 className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-lg p-3"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-2">
+                  {/* Top: Name + Email + ID */}
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                       {name}
@@ -311,17 +277,25 @@ export const UsersTable: React.FC = () => {
                       {email}
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      ID: {u._id}
+                      ID:{" "}
+                      <span className="font-mono text-slate-700 dark:text-slate-200">
+                        {displayId}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right space-y-1">
+
+                  {/* Divider for visual separation */}
+                  <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+
+                  {/* Bottom: Role + Status aligned to right */}
+                  <div className="flex items-center justify-between gap-3">
                     <div className="text-xs text-slate-500 dark:text-slate-300">
                       Role
                     </div>
-                    <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                      {role}
-                    </div>
-                    <div className="mt-1 text-xs">
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                        {role}
+                      </div>
                       <span
                         className={`inline-flex px-2 py-0.5 rounded-full text-[11px] ${
                           isBlocked
