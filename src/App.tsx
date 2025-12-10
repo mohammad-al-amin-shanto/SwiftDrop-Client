@@ -1,10 +1,12 @@
 import { ToastContainer } from "react-toastify";
 import "./App.css";
 import AppRoutes from "./routes/AppRoutes";
+import RouteChangeLoader from "./components/ui/RouteChangeLoader";
 
 function App() {
   return (
     <>
+      <RouteChangeLoader />
       <AppRoutes />
       <ToastContainer
         position="top-right"
