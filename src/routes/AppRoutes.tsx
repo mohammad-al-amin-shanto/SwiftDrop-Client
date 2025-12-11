@@ -1,4 +1,3 @@
-// src/routes/AppRoutes.tsx
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAppSelector } from "../app/hooks";
@@ -10,10 +9,6 @@ import AppShell from "../components/layout/AppShell";
 import RequireAuth from "./RequireAuth";
 import NotFound from "../pages/public/NotFound";
 
-/**
- * Minimal local type for the user object shape we rely on here.
- * Replace with your real User type if you have one exported from types/.
- */
 type CurrentUserLite = {
   role?: string;
 } | null;
@@ -57,7 +52,7 @@ const AppRoutes: React.FC = () => {
     return "/dashboard/sender";
   };
 
-  // When you hit "/", unauth → Home, auth → redirect to own dashboard
+  // When hit "/", unauth → Home, auth → redirect to own dashboard
   const HomeOrRedirect: React.FC = () => {
     if (!isAuth) return <Home />;
     return <Navigate to={chooseDashboard()} replace />;

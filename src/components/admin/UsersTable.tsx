@@ -1,4 +1,3 @@
-// src/components/admin/UsersTable.tsx
 import React, { useState, useMemo } from "react";
 import { useListUsersQuery } from "../../api/usersApi";
 import type { User } from "../../types";
@@ -8,7 +7,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** Nicer error extraction without `any` */
 function getErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;
@@ -32,7 +30,7 @@ function getErrorMessage(err: unknown): string {
   return "Failed to load users.";
 }
 
-// Helper type for card view, without using `any`
+// Helper type for card view
 type UserWithFlags = User & {
   blocked?: boolean;
   isBlocked?: boolean;
@@ -259,7 +257,7 @@ export const UsersTable: React.FC = () => {
                 ? extended.blocked
                 : false;
 
-            // 👇 Prefer shortId; fall back to Mongo _id if somehow missing
+            // Prefer shortId; fall back to Mongo _id if somehow missing
             const displayId = extended.shortId || extended._id;
 
             return (

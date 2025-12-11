@@ -1,4 +1,3 @@
-// src/components/auth/ProfileForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";
@@ -12,7 +11,7 @@ type FormValues = {
   email: string;
 };
 
-/** Safe extractor for error messages (no `any`) */
+/** Safe extractor for error messages */
 function getErrorMessage(err: unknown): string {
   if (!err) return "Unknown error";
   if (typeof err === "string") return err;

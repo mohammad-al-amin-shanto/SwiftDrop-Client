@@ -1,4 +1,3 @@
-// src/components/auth/RegisterForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useRegisterMutation } from "../../api/authApi";
@@ -84,7 +83,7 @@ const RegisterForm: React.FC = () => {
 
   const onSubmit = async (payload: FormValues) => {
     try {
-      const res = await registerApi(payload).unwrap(); // expects { token, user }
+      const res = await registerApi(payload).unwrap();
       const token = res?.token ?? "";
       const userCandidate = (res?.user ?? null) as User | null;
 

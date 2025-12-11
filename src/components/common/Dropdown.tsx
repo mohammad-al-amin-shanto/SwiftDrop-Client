@@ -1,11 +1,10 @@
-// src/components/common/Dropdown.tsx
 import React, { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 type Item = {
   label: React.ReactNode;
   onClick?: () => void;
-  to?: string; // optional link target
+  to?: string;
   disabled?: boolean;
   icon?: React.ReactNode;
 };

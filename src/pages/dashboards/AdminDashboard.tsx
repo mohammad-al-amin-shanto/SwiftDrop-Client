@@ -1,4 +1,3 @@
-// src/pages/dashboards/AdminDashboard.tsx
 import React from "react";
 import {
   FaBoxOpen,

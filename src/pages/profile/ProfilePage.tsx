@@ -1,4 +1,3 @@
-// src/pages/profile/ProfilePage.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";

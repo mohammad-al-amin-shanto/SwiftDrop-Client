@@ -1,4 +1,3 @@
-// src/pages/public/Home.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../components/layout/AppShell";

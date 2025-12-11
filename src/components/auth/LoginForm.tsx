@@ -1,4 +1,3 @@
-// src/components/auth/LoginForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useLoginMutation } from "../../api/authApi";
@@ -90,8 +89,6 @@ const LoginForm: React.FC<{ onSuccess?: () => void }> = ({ onSuccess }) => {
 
   const onSubmit = async (payload: FormValues) => {
     try {
-      // Send the `email` field as backend expects. If you implement shortId login server-side later,
-      // update this logic to detect shortId vs email and call the proper endpoint.
       const res = await login({
         email: payload.emailOrId,
         password: payload.password,

@@ -1,4 +1,3 @@
-// src/components/parcels/StatusTimeline.tsx
 import React from "react";
 import type { Parcel, ParcelLog, User } from "../../types";
 import { format } from "date-fns";

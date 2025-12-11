@@ -1,10 +1,9 @@
-// src/routes/RequireRole.tsx
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAppSelector } from "../app/hooks";
 
 type Props = {
-  role: string | string[]; // allowed roles
+  role: string | string[];
   children: React.ReactNode;
 };
 

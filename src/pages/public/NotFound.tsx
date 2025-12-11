@@ -13,7 +13,7 @@ const NotFound: React.FC = () => {
 
   const handleGoDashboard = () => {
     if (isAuth) {
-      navigate("/dashboard/sender"); // router will redirect to correct dashboard anyway
+      navigate("/dashboard/sender");
     } else {
       navigate("/auth/login");
     }

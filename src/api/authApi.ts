@@ -1,17 +1,5 @@
-// src/api/authApi.ts
 import type { User } from "../types";
 import { baseApi } from "./baseApi";
-
-/**
- * Normalize server response shapes into { token, user }.
- *
- * Servers commonly reply:
- *  { status: 'success', data: { user: {...}, accessToken: '...', refreshToken: '...' } }
- * or sometimes:
- *  { user: {...}, accessToken: '...' }
- *
- * This module tries to detect both shapes gracefully.
- */
 
 type ServerData =
   | {

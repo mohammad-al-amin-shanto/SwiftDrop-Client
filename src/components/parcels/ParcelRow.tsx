@@ -1,4 +1,3 @@
-// src/components/parcels/ParcelRow.tsx
 import React from "react";
 import type { Parcel, User } from "../../types";
 import { format } from "date-fns";

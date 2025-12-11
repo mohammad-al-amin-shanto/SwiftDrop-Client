@@ -1,4 +1,3 @@
-// src/components/parcels/TrackingSearchWidget.tsx
 import React, { useState } from "react";
 import { useTrackByTrackingIdQuery } from "../../api/parcelsApi";
 import Button from "../common/Button";

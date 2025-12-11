@@ -1,4 +1,3 @@
-// src/components/charts/ShipmentsBarChart.tsx
 import React from "react";
 import {
   BarChart,

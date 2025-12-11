@@ -1,12 +1,10 @@
-// src/api/baseApi.ts
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import type { BaseQueryFn } from "@reduxjs/toolkit/query";
 import type { FetchArgs, FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { RootState } from "../app/store";
 import { getToken, clearToken, clearUser } from "../lib/storage";
 import { clearAuthState } from "../features/auth/authSlice";
-// Optional: show toast to the user on session expiry
-// import { toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 const BASE_URL =
   (import.meta.env && (import.meta.env.VITE_API_URL as string)) ??
@@ -27,7 +25,7 @@ const rawBaseQuery = fetchBaseQuery({
     // Prefer token from local storage (persisted) so reloads keep working.
     const tokenFromStorage = getToken(); // string | null
 
-    // Try reading token from redux store (may be undefined)
+    // Trying reading token from redux store (may be undefined)
     let tokenFromStore: string | undefined;
     try {
       const getState = api.getState as () => RootState | undefined;
@@ -89,8 +87,8 @@ const baseQueryWith401Handler: BaseQueryFn<
     }
 
     // OPTIONAL: notify user (uncomment to enable)
-    // toast.error("Session expired — please sign in again.");
-    // OPTIONAL: redirect user to login page (uncomment to enable)
+    toast.error("Session expired — please sign in again.");
+    // OPTIONAL: redirect user to login page
     // window.location.href = "/auth/login";
 
     // Return original error upward so components can handle it

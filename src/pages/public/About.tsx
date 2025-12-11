@@ -1,4 +1,3 @@
-// src/pages/public/About.tsx
 import React from "react";
 import { AppShell } from "../../components/layout/AppShell";
 

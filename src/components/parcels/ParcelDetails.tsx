@@ -1,4 +1,3 @@
-// src/components/parcels/ParcelDetails.tsx
 import React from "react";
 import type { Parcel, User } from "../../types";
 import { format } from "date-fns";
@@ -32,10 +31,6 @@ type PersonLike = {
   [k: string]: unknown;
 };
 
-/**
- * Shape that extends Parcel with all the "maybe present" fields
- * coming from different API versions.
- */
 type ParcelWithExtras = Parcel & {
   logs?: { status?: string }[];
   statusLogs?: { status?: string }[];

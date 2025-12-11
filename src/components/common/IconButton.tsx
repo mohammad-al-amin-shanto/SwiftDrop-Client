@@ -1,4 +1,3 @@
-// src/components/common/IconButton.tsx
 import React from "react";
 import clsx from "clsx";
 

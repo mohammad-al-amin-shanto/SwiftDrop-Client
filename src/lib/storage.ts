@@ -1,4 +1,3 @@
-// src/lib/storage.ts
 /**
  * Robust localStorage helpers for auth token and user object.
  * - Treats "undefined", "null", empty or whitespace-only strings as absent.

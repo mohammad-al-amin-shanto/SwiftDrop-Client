@@ -1,4 +1,3 @@
-// src/components/ui/PageLoader.tsx
 import React from "react";
 
 const PageLoader: React.FC = () => {

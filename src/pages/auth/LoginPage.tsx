@@ -1,4 +1,3 @@
-// src/pages/auth/LoginPage.tsx
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../app/hooks";
@@ -6,10 +5,6 @@ import { selectIsAuthenticated } from "../../features/auth/authSelectors";
 import LoginForm from "../../components/auth/LoginForm";
 import AppShell from "../../components/layout/AppShell";
 
-/**
- * Minimal local type for the user object we care about here.
- * Replace with your actual User type when available.
- */
 type CurrentUserLite = {
   role?: string;
 } | null;

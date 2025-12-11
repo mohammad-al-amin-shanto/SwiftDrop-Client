@@ -1,4 +1,3 @@
-// src/components/parcels/ParcelTable.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import {
   useListParcelsQuery,
@@ -124,7 +123,6 @@ type Props = {
   senderId?: string;
   receiverId?: string;
   showConfirmAll?: boolean;
-  /** When true, don't render own card wrapper – assume parent provides bg/border/padding */
   embedded?: boolean;
 };
 

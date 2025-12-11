@@ -1,4 +1,3 @@
-// src/api/usersApi.ts
 import { baseApi } from "./baseApi";
 import type { User } from "../types";
 
@@ -28,7 +27,7 @@ type ListUsersResponseRaw = {
 export type ListUsersParams = {
   page?: number;
   limit?: number;
-  q?: string; // backend expects `q` for search
+  q?: string;
   role?: string;
   blocked?: boolean;
 };
@@ -41,7 +40,7 @@ export const usersApi = baseApi.injectEndpoints({
 
         if (page) qs.set("page", String(page));
         if (limit) qs.set("limit", String(limit));
-        if (q) qs.set("q", q); // 👈 matches backend: req.query.q
+        if (q) qs.set("q", q);
         if (role) qs.set("role", role);
         if (typeof blocked === "boolean") {
           qs.set("blocked", String(blocked));
@@ -122,8 +121,7 @@ export const usersApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // NOTE: your backend has PUT /users/:id/block and /users/:id/unblock.
-    // I'm not touching this now since your current UI logic may rely on it.
+    // NOTE: backend has PUT /users/:id/block and /users/:id/unblock.
     blockUser: build.mutation<
       { success: boolean },
       { id: string; block: boolean }

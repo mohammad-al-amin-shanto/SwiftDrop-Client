@@ -1,4 +1,3 @@
-// src/pages/tracking/TrackingPage.tsx
 import React, { useState } from "react";
 import { useTrackByTrackingIdQuery } from "../../api/parcelsApi";
 import StatusTimeline from "../../components/parcels/StatusTimeline";
@@ -30,7 +29,7 @@ const TrackingPage: React.FC = () => {
 
   const disableSearch = !trackingId.trim() || isFetching;
 
-  // ---- Error helpers (type-safe, no "any") ----
+  // ---- Error helpers  ----
   const isFetchError = (err: unknown): err is FetchBaseQueryError =>
     typeof err === "object" && err !== null && "status" in err;
 

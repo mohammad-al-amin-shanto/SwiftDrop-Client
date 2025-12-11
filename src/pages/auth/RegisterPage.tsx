@@ -1,4 +1,3 @@
-// src/pages/auth/RegisterPage.tsx
 import React from "react";
 import RegisterForm from "../../components/auth/RegisterForm";
 import { AppShell } from "../../components/layout/AppShell";

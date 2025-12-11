@@ -1,4 +1,3 @@
-// src/components/charts/StatusPieChart.tsx
 import React from "react";
 import {
   PieChart,
@@ -14,7 +13,6 @@ type Stats = {
   delivered?: number;
   inTransit?: number;
   cancelled?: number;
-  // Optional from backend; we'll still compute fallback if missing
   pending?: number;
 };
 
@@ -90,7 +88,7 @@ const StatusPieChart: React.FC<Props> = ({
     );
   }
 
-  // ✅ Normal render using ResponsiveContainer (no ResizeObserver)
+  // ✅ Normal render using ResponsiveContainer
   return (
     <div
       className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"

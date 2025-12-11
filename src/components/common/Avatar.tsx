@@ -1,11 +1,10 @@
-// src/components/common/Avatar.tsx
 import React from "react";
 import clsx from "clsx";
 
 type Props = {
   name?: string;
   src?: string | null;
-  size?: number; // px
+  size?: number;
   className?: string;
 };
 

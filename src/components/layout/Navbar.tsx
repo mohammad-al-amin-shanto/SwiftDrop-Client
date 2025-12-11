@@ -1,4 +1,3 @@
-// src/components/layout/Navbar.tsx
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";

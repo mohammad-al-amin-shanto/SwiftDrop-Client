@@ -1,4 +1,3 @@
-// src/pages/public/Features.tsx
 import React from "react";
 import {
   FaTruck,

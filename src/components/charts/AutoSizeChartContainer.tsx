@@ -1,4 +1,3 @@
-// src/components/charts/AutoSizeChartContainer.tsx
 import { useRef, useState, useLayoutEffect } from "react";
 import type { ReactNode, FC } from "react";
 

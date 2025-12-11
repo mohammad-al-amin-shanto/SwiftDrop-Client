@@ -1,4 +1,3 @@
-// src/components/layout/Footer.tsx
 import React from "react";
 import { NavLink } from "react-router-dom";
 

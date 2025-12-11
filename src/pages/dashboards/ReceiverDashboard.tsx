@@ -1,4 +1,3 @@
-// src/pages/dashboards/ReceiverDashboard.tsx
 import React from "react";
 import { FaBoxOpen, FaCheckCircle, FaTruck, FaClock } from "react-icons/fa";
 import ParcelTable from "../../components/parcels/ParcelTable";

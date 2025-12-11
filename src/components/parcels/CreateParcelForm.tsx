@@ -1,4 +1,3 @@
-// src/components/parcels/CreateParcelForm.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
 import { useCreateParcelMutation } from "../../api/parcelsApi";
@@ -53,9 +52,7 @@ function getErrorMessage(err: unknown): string {
 }
 
 /**
- * Shape of the API response for createParcel:
- * - most likely: Parcel
- * - sometimes (if you ever wrap it): { data: Parcel }
+ * Shape of the API response for createParcel
  */
 type CreateParcelResponse = Parcel | { data?: Parcel };
 
@@ -82,9 +79,8 @@ function extractTrackingId(res: CreateParcelResponse): string | undefined {
 }
 
 /**
- * Map form values to the server DTO expected by your backend.
  * Backend requires:
- *   - receiverId (SwiftDrop user shortId or ObjectId, depending on your design)
+ *   - receiverId (SwiftDrop user shortId or ObjectId)
  *   - origin
  *   - destination
  *   - price (we map from declaredValue)

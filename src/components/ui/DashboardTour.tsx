@@ -1,4 +1,3 @@
-// src/components/ui/DashboardTour.tsx
 import React, { useEffect, useRef } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";

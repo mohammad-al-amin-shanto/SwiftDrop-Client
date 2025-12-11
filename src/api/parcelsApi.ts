@@ -1,4 +1,3 @@
-// src/api/parcelsApi.ts
 import { baseApi } from "./baseApi";
 import type { Parcel, ParcelCreateDto } from "../types";
 
@@ -33,7 +32,7 @@ type ParcelsStatsInner = {
   delivered: number;
   inTransit: number;
   cancelled?: number;
-  pending?: number; // ✅ allow pending coming from backend
+  pending?: number;
   monthly: { month: string; count: number }[];
 };
 
@@ -167,7 +166,7 @@ export const parcelsApi = baseApi.injectEndpoints({
         delivered: number;
         inTransit: number;
         cancelled: number;
-        pending?: number; // ✅ expose pending to frontend
+        pending?: number;
         monthly: { month: string; count: number }[];
       },
       void
@@ -185,11 +184,11 @@ export const parcelsApi = baseApi.injectEndpoints({
           delivered: delivered ?? 0,
           inTransit: inTransit ?? 0,
           cancelled: cancelled ?? 0,
-          pending, // ✅ pass it through (can be undefined)
+          pending,
           monthly: Array.isArray(monthly) ? monthly : [],
         };
       },
-      // 👇 This is the tag we invalidate from mutations
+      // This is the tag we invalidate from mutations
       providesTags: [{ type: "Parcel" as const, id: "STATS" }],
     }),
   }),

@@ -1,4 +1,3 @@
-// src/pages/dashboards/SenderDashboard.tsx
 import React from "react";
 import {
   FaBoxOpen,

@@ -1,4 +1,3 @@
-// src/pages/public/Faq.tsx
 import React, { useMemo, useState } from "react";
 import { AppShell } from "../../components/layout/AppShell";
 import Input from "../../components/common/Input";
