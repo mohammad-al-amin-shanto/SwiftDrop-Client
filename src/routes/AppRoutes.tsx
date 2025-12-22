@@ -4,16 +4,10 @@ import { useAppSelector } from "../app/hooks";
 import { selectIsAuthenticated } from "../features/auth/authSelectors";
 import PageLoader from "../components/ui/PageLoader";
 
-// Layout & guards (these are small / central, can stay eagerly loaded)
 import AppShell from "../components/layout/AppShell";
 import RequireAuth from "./RequireAuth";
+import { RequireRole } from "./RequireRole";
 import NotFound from "../pages/public/NotFound";
-
-type CurrentUserLite = {
-  role?: string;
-} | null;
-
-// ---------- Lazy-loaded pages ----------
 
 // Public pages
 const Home = lazy(() => import("../pages/public/Home"));
@@ -41,54 +35,45 @@ const ProfilePage = lazy(() => import("../pages/profile/ProfilePage"));
 
 const AppRoutes: React.FC = () => {
   const isAuth = useAppSelector(selectIsAuthenticated);
-  const currentUser = useAppSelector(
-    (s) => (s.auth?.user as CurrentUserLite) ?? null
-  );
+  const user = useAppSelector((s) => s.auth.user);
 
-  const chooseDashboard = () => {
-    const role = currentUser?.role ?? "";
-    if (role === "admin") return "/dashboard/admin";
-    if (role === "receiver") return "/dashboard/receiver";
+  const getDashboardPath = () => {
+    if (!user?.role) return "/dashboard/sender";
+    if (user.role === "admin") return "/dashboard/admin";
+    if (user.role === "receiver") return "/dashboard/receiver";
     return "/dashboard/sender";
-  };
-
-  // When hit "/", unauth → Home, auth → redirect to own dashboard
-  const HomeOrRedirect: React.FC = () => {
-    if (!isAuth) return <Home />;
-    return <Navigate to={chooseDashboard()} replace />;
   };
 
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* Root landing route */}
-        <Route path="/" element={<HomeOrRedirect />} />
+        {/* Root */}
+        <Route
+          path="/"
+          element={isAuth ? <Navigate to="/dashboard" replace /> : <Home />}
+        />
 
-        {/* Public pages - accessible even when logged in */}
+        {/* Public */}
         <Route path="/about" element={<About />} />
         <Route path="/features" element={<Features />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<Faq />} />
 
-        {/* Auth routes */}
+        {/* Auth */}
         <Route
           path="/auth/login"
           element={
-            isAuth ? <Navigate to={chooseDashboard()} replace /> : <LoginPage />
+            isAuth ? <Navigate to="/dashboard" replace /> : <LoginPage />
           }
         />
         <Route
           path="/auth/register"
           element={
-            isAuth ? (
-              <Navigate to={chooseDashboard()} replace />
-            ) : (
-              <RegisterPage />
-            )
+            isAuth ? <Navigate to="/dashboard" replace /> : <RegisterPage />
           }
         />
 
-        {/* Protected profile route (top-level /profile) */}
+        {/* Profile */}
         <Route
           path="/profile"
           element={
@@ -98,7 +83,7 @@ const AppRoutes: React.FC = () => {
           }
         />
 
-        {/* Protected dashboard section using AppShell */}
+        {/* Dashboard */}
         <Route
           path="/dashboard"
           element={
@@ -107,12 +92,37 @@ const AppRoutes: React.FC = () => {
             </RequireAuth>
           }
         >
-          <Route path="sender" element={<SenderDashboard />} />
-          <Route path="receiver" element={<ReceiverDashboard />} />
-          <Route path="admin" element={<AdminDashboard />} />
+          {/* ROLE-AWARE DEFAULT */}
+          <Route index element={<Navigate to={getDashboardPath()} replace />} />
+
+          <Route
+            path="sender"
+            element={
+              <RequireRole role="sender">
+                <SenderDashboard />
+              </RequireRole>
+            }
+          />
+
+          <Route
+            path="receiver"
+            element={
+              <RequireRole role="receiver">
+                <ReceiverDashboard />
+              </RequireRole>
+            }
+          />
+
+          <Route
+            path="admin"
+            element={
+              <RequireRole role="admin">
+                <AdminDashboard />
+              </RequireRole>
+            }
+          />
+
           <Route path="tracking" element={<TrackingPage />} />
-          {/* default dashboard route */}
-          <Route index element={<Navigate to="/dashboard/sender" replace />} />
         </Route>
 
         {/* Fallback */}
