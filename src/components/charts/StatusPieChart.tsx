@@ -8,6 +8,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+/* ================= TYPES ================= */
+
 type Stats = {
   total?: number;
   delivered?: number;
@@ -21,101 +23,116 @@ type Props = {
   loading?: boolean;
   height?: number;
   title?: string;
+  mode?: "sender" | "receiver";
 };
 
-const COLORS = ["#34D399", "#60A5FA", "#F59E0B", "#EF4444"];
+/* ================= COLOR PRESETS ================= */
+
+const SENDER_COLORS = {
+  delivered: "#34D399", // green
+  inTransit: "#60A5FA", // blue
+  pending: "#FBBF24", // amber
+  cancelled: "#EF4444", // red
+};
+
+const RECEIVER_COLORS = {
+  delivered: "#22C55E", // stronger green (success)
+  inTransit: "#38BDF8", // calm blue
+  pending: "#CBD5E1", // neutral gray (waiting)
+  cancelled: "#F87171", // softer red
+};
+
+/* ================= COMPONENT ================= */
 
 const StatusPieChart: React.FC<Props> = ({
   stats = null,
   loading = false,
   height = 280,
-  title = "Status Distribution",
+  title,
+  mode = "sender",
 }) => {
   const total = stats?.total ?? 0;
   const delivered = stats?.delivered ?? 0;
   const inTransit = stats?.inTransit ?? 0;
   const cancelled = stats?.cancelled ?? 0;
 
-  // Prefer backend `pending` if it exists, otherwise derive it
-  const pendingFromBackend =
-    typeof stats?.pending === "number" ? stats.pending : undefined;
-
   const pending =
-    pendingFromBackend !== undefined
-      ? pendingFromBackend
+    typeof stats?.pending === "number"
+      ? stats.pending
       : Math.max(0, total - (delivered + inTransit + cancelled));
 
-  const data = [
-    { name: "Delivered", value: delivered },
-    { name: "In Transit", value: inTransit },
-    { name: "Pending", value: pending },
-    { name: "Cancelled", value: cancelled },
-  ];
+  const colors = mode === "receiver" ? RECEIVER_COLORS : SENDER_COLORS;
+
+  const data =
+    mode === "receiver"
+      ? [
+          { name: "Received", value: delivered, color: colors.delivered },
+          { name: "On the way", value: inTransit, color: colors.inTransit },
+          { name: "Waiting", value: pending, color: colors.pending },
+          { name: "Cancelled", value: cancelled, color: colors.cancelled },
+        ]
+      : [
+          { name: "Delivered", value: delivered, color: colors.delivered },
+          { name: "In transit", value: inTransit, color: colors.inTransit },
+          { name: "Pending", value: pending, color: colors.pending },
+          { name: "Cancelled", value: cancelled, color: colors.cancelled },
+        ];
 
   const hasData = data.some((d) => d.value > 0);
 
-  // ⏳ Loading state with your card styles
+  const resolvedTitle =
+    title ??
+    (mode === "receiver" ? "Incoming parcel status" : "Outgoing parcel status");
+
+  /* ---------- LOADING ---------- */
   if (loading) {
     return (
       <div
-        className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"
+        className="rounded-2xl border border-slate-100 bg-white p-4 flex items-center justify-center"
         style={{ height }}
-        role="status"
-        aria-live="polite"
       >
-        <div className="text-sm font-medium text-slate-700">{title}</div>
-        <div className="flex flex-1 items-center justify-center">
-          <span className="text-sm text-slate-500">Loading chart…</span>
-        </div>
+        <span className="text-sm text-slate-500">Loading chart…</span>
       </div>
     );
   }
 
-  // 🚫 No data
+  /* ---------- EMPTY ---------- */
   if (!hasData) {
     return (
       <div
-        className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"
+        className="rounded-2xl border border-slate-100 bg-white p-4 flex items-center justify-center"
         style={{ height }}
       >
-        <div className="text-sm font-medium text-slate-700">{title}</div>
-        <div className="flex flex-1 items-center justify-center">
-          <span className="text-sm text-slate-500">
-            No chart data available
-          </span>
-        </div>
+        <span className="text-sm text-slate-500">No data available yet</span>
       </div>
     );
   }
 
-  // ✅ Normal render using ResponsiveContainer
+  /* ---------- CHART ---------- */
   return (
     <div
-      className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"
+      className="rounded-2xl border border-slate-100 bg-white p-4 flex flex-col gap-3"
       style={{ height }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-medium text-slate-700">{title}</div>
-        {total > 0 && (
-          <span className="text-xs text-slate-400">
-            Total: {total.toLocaleString()}
-          </span>
-        )}
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium text-slate-700">
+          {resolvedTitle}
+        </span>
+        <span className="text-xs text-slate-400">Total: {total}</span>
       </div>
 
-      {/* Chart area fills remaining height */}
       <div className="flex-1 min-h-40">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              dataKey="value"
               data={data}
+              dataKey="value"
               innerRadius={40}
               outerRadius={80}
               label
             >
-              {data.map((_, idx) => (
-                <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+              {data.map((entry, idx) => (
+                <Cell key={idx} fill={entry.color} />
               ))}
             </Pie>
             <Tooltip />

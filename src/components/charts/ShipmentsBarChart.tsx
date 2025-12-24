@@ -9,6 +9,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+/* ================= TYPES ================= */
+
 type MonthPoint = { month: string; count: number };
 
 type Props = {
@@ -16,17 +18,21 @@ type Props = {
   loading?: boolean;
   height?: number;
   title?: string;
+  mode?: "sender" | "receiver";
 };
+
+/* ================= COMPONENT ================= */
 
 const ShipmentsBarChart: React.FC<Props> = ({
   data = [],
   loading = false,
   height = 280,
   title = "Shipments over time",
+  mode = "sender",
 }) => {
   const hasData = Array.isArray(data) && data.length > 0;
 
-  // 🔄 Loading state – keep your existing card look
+  // 🔄 Loading state
   if (loading) {
     return (
       <div
@@ -60,7 +66,7 @@ const ShipmentsBarChart: React.FC<Props> = ({
     );
   }
 
-  // ✅ Normal render with ResponsiveContainer
+  // ✅ Normal render
   return (
     <div
       className="w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 md:p-5 flex flex-col gap-3"
@@ -68,10 +74,11 @@ const ShipmentsBarChart: React.FC<Props> = ({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-medium text-slate-700">{title}</div>
-        <span className="text-xs text-slate-400">Monthly</span>
+        <span className="text-xs text-slate-400">
+          {mode === "receiver" ? "Incoming" : "Outgoing"} · Monthly
+        </span>
       </div>
 
-      {/* This area stretches to fill the remaining height */}
       <div className="flex-1 min-h-40">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
@@ -79,7 +86,7 @@ const ShipmentsBarChart: React.FC<Props> = ({
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
             <Tooltip />
-            <Bar dataKey="count" name="Shipments" />
+            <Bar dataKey="count" name="Shipments" fill="#60A5FA" />
           </BarChart>
         </ResponsiveContainer>
       </div>
