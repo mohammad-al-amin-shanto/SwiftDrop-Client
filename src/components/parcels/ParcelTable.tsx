@@ -4,6 +4,7 @@ import {
   useCancelParcelMutation,
   useUpdateParcelStatusMutation,
 } from "../../api/parcelsApi";
+import { useAppSelector } from "../../app/hooks";
 import ParcelRow from "./ParcelRow";
 import StatusTimeline from "./StatusTimeline";
 import type { Parcel, User } from "../../types";
@@ -142,6 +143,13 @@ export const ParcelTable: React.FC<Props> = ({
     "30d"
   );
 
+  // 🔐 Auth / Role
+  const currentUser = useAppSelector((s) => s.auth.user);
+  const role = currentUser?.role;
+  const isSender = role === "sender";
+  const isReceiver = role === "receiver";
+  const isAdmin = role === "admin";
+
   const debouncedSearch = useDebounce<string>(search, 400);
 
   const params = useMemo(() => {
@@ -162,6 +170,27 @@ export const ParcelTable: React.FC<Props> = ({
 
   const { parcels, total } = normalizeListResponse(data);
 
+  // 🔐 Permission helpers
+  function canSenderCancel(parcel: Parcel) {
+    const s = (parcel.status ?? "").toLowerCase();
+    return ![
+      "dispatched",
+      "in_transit",
+      "intransit",
+      "delivered",
+      "cancelled",
+    ].includes(s);
+  }
+
+  function canReceiverConfirm(parcel: Parcel) {
+    return (parcel.status ?? "").toLowerCase() === "delivered";
+  }
+
+  function canAdminAdvance(parcel: Parcel) {
+    const s = (parcel.status ?? "").toLowerCase();
+    return !["delivered", "cancelled"].includes(s);
+  }
+
   useEffect(() => {
     if (isError) {
       const msg = getErrorMessage(error);
@@ -175,12 +204,16 @@ export const ParcelTable: React.FC<Props> = ({
   };
 
   const handleCancel = async (id: string) => {
+    if (!isSender && !isAdmin) {
+      toast.info("You are not allowed to cancel this parcel.");
+      return;
+    }
+
     try {
       await cancelParcel({ id }).unwrap();
       toast.success("Parcel cancelled");
       refetch();
     } catch (err: unknown) {
-      console.error("Cancel parcel error:", err);
       toast.error(getErrorMessage(err));
     }
   };
@@ -191,43 +224,67 @@ export const ParcelTable: React.FC<Props> = ({
     const currentRaw = parcel.status ?? "";
     const current = currentRaw.toLowerCase();
 
-    let nextStatus: string;
-
-    switch (current) {
-      case "created":
-        nextStatus = "pending";
-        break;
-      case "pending":
-        nextStatus = "collected";
-        break;
-      case "collected":
-        nextStatus = "dispatched";
-        break;
-      case "dispatched":
-      case "intransit":
-      case "in_transit":
-        nextStatus = "delivered";
-        break;
-      case "delivered":
-      case "cancelled":
-        toast.info("This parcel is already in a final state.");
+    // 🟢 Receiver: can ONLY confirm delivery
+    if (isReceiver) {
+      if (!canReceiverConfirm(parcel)) {
+        toast.info("You can confirm only after delivery.");
         return;
-      default:
-        nextStatus = "delivered";
-        break;
+      }
+
+      try {
+        await updateStatus({
+          id,
+          status: "confirmed",
+          note: "Delivery confirmed by receiver",
+        }).unwrap();
+        toast.success("Delivery confirmed");
+        refetch();
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      }
+      return;
     }
 
-    try {
-      await updateStatus({
-        id,
-        status: nextStatus,
-        note: `Status changed from "${currentRaw}" to "${nextStatus}" via UI`,
-      }).unwrap();
-      toast.success(`Parcel status updated to "${nextStatus}"`);
-      refetch();
-    } catch (err: unknown) {
-      console.error("Update status error:", err);
-      toast.error(getErrorMessage(err));
+    // 🔵 Sender: NO confirm permission
+    if (isSender && !isAdmin) {
+      toast.info("Senders cannot confirm delivery.");
+      return;
+    }
+
+    // 🔴 Admin: lifecycle advance
+    if (isAdmin && canAdminAdvance(parcel)) {
+      let nextStatus: string;
+
+      switch (current) {
+        case "created":
+          nextStatus = "pending";
+          break;
+        case "pending":
+          nextStatus = "collected";
+          break;
+        case "collected":
+          nextStatus = "dispatched";
+          break;
+        case "dispatched":
+        case "in_transit":
+        case "intransit":
+          nextStatus = "delivered";
+          break;
+        default:
+          return;
+      }
+
+      try {
+        await updateStatus({
+          id,
+          status: nextStatus,
+          note: `Admin updated status to ${nextStatus}`,
+        }).unwrap();
+        toast.success(`Status updated to ${nextStatus}`);
+        refetch();
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      }
     }
   };
 
@@ -429,19 +486,10 @@ export const ParcelTable: React.FC<Props> = ({
             const withRelations = p as ParcelWithRelations;
             const receiver = withRelations.receiver ?? withRelations.receiverId;
 
-            const statusLower = (p.status ?? "").toLowerCase();
+            const canCancelMobile = (isSender && canSenderCancel(p)) || isAdmin;
 
-            const canCancelMobile = ![
-              "dispatched",
-              "delivered",
-              "cancelled",
-              "in_transit",
-              "intransit",
-            ].includes(statusLower);
-
-            const canConfirmMobile = !["delivered", "cancelled"].includes(
-              statusLower
-            );
+            const canConfirmMobile =
+              (isReceiver && canReceiverConfirm(p)) || isAdmin;
 
             return (
               <article

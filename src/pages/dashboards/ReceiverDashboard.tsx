@@ -1,13 +1,10 @@
 import React, { useMemo } from "react";
-import { FaBoxOpen, FaTruck, FaCheckCircle, FaHistory } from "react-icons/fa";
+import { FaBoxOpen, FaTruck, FaCheckCircle, FaClock } from "react-icons/fa";
 
 import ParcelTable from "../../components/parcels/ParcelTable";
-import {
-  useParcelsStatsQuery,
-  useListParcelsQuery,
-} from "../../api/parcelsApi";
+import { useListParcelsQuery } from "../../api/parcelsApi";
 import { useAppSelector } from "../../app/hooks";
-import StatusPieChart from "../../components/charts/StatusPieChart";
+import { useGetReceiverDashboardQuery } from "../../api/dashboardApi";
 
 /* ================= TYPES ================= */
 
@@ -23,45 +20,34 @@ type Parcel = {
   _id: string;
   trackingId: string;
   status: ParcelStatus;
-  createdAt: string;
   updatedAt: string;
 };
 
-type ParcelsStatsShape = {
-  total: number;
-  delivered: number;
+type ReceiverDashboardStats = {
+  totalExpected: number;
   inTransit: number;
-  cancelled: number;
+  delivered: number;
+  awaitingConfirmation: number;
+  arrivingToday: number;
 };
 
 type PaginatedResponse<T> = {
   items: T[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    pages: number;
-  };
 };
 
 /* ================= COMPONENT ================= */
 
 const ReceiverDashboard: React.FC = () => {
   const user = useAppSelector((s) => s.auth.user);
-  const receiverId = user?._id;
 
-  /* ---------- Stats ---------- */
-  const { data: stats, isLoading: statsLoading } = useParcelsStatsQuery();
-  const statsTyped = stats as ParcelsStatsShape | undefined;
+  /* ---------- Receiver Stats (SERVER TRUSTED) ---------- */
+  const { data: statsResponse, isLoading: statsLoading } =
+    useGetReceiverDashboardQuery();
 
-  const total = statsTyped?.total ?? 0;
-  const delivered = statsTyped?.delivered ?? 0;
-  const inTransit = statsTyped?.inTransit ?? 0;
-  const awaitingConfirmation = delivered;
+  const stats = statsResponse?.data as ReceiverDashboardStats | undefined;
 
   /* ---------- Receiver Parcels ---------- */
   const { data: parcelsResponse } = useListParcelsQuery({
-    receiverId,
     page: 1,
     limit: 50,
   });
@@ -72,7 +58,7 @@ const ReceiverDashboard: React.FC = () => {
     [parcelsResponse]
   );
 
-  /* ---------- Recent Delivery History ---------- */
+  /* ---------- Recent Delivered Parcels ---------- */
   const recentDeliveries = useMemo(
     () =>
       parcels
@@ -91,47 +77,54 @@ const ReceiverDashboard: React.FC = () => {
         {/* ================= HEADER ================= */}
         <section className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-            Receiver Dashboard
+            Welcome{user?.name ? `, ${user.name}` : ""} 👋
           </h1>
           <p className="text-sm text-slate-500">
-            View incoming parcels, confirm delivery, and review delivery
-            history.
+            Track your incoming parcels and take action when required.
           </p>
         </section>
 
         {/* ================= STATS ================= */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard
             icon={<FaBoxOpen />}
-            label="Incoming Parcels"
-            value={statsLoading ? 0 : total}
+            label="Expected Parcels"
+            value={statsLoading ? 0 : stats?.totalExpected ?? 0}
           />
+
           <StatCard
             icon={<FaTruck />}
             label="In Transit"
-            value={statsLoading ? 0 : inTransit}
+            value={statsLoading ? 0 : stats?.inTransit ?? 0}
           />
+
           <StatCard
             icon={<FaCheckCircle />}
-            label="Awaiting Confirmation"
-            value={statsLoading ? 0 : awaitingConfirmation}
-          />
-          <StatCard
-            icon={<FaHistory />}
             label="Delivered"
-            value={statsLoading ? 0 : delivered}
+            value={statsLoading ? 0 : stats?.delivered ?? 0}
+          />
+
+          <StatCard
+            icon={<FaClock />}
+            label="Arriving Today"
+            value={statsLoading ? 0 : stats?.arrivingToday ?? 0}
+          />
+
+          <StatCard
+            icon={<FaCheckCircle />}
+            label="Action Required"
+            value={statsLoading ? 0 : stats?.awaitingConfirmation ?? 0}
+            highlight={(stats?.awaitingConfirmation ?? 0) > 0}
           />
         </section>
 
-        {/* ================= DELIVERY HISTORY ================= */}
+        {/* ================= RECENT ACTIVITY ================= */}
         <section className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm">
-          <h2 className="flex items-center gap-2 font-semibold mb-3">
-            <FaHistory className="text-sky-600" /> Recent Deliveries
-          </h2>
+          <h2 className="font-semibold mb-3">Recent Deliveries</h2>
 
           {recentDeliveries.length === 0 ? (
             <p className="text-sm text-slate-500">
-              No deliveries completed yet.
+              No completed deliveries yet.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -143,7 +136,7 @@ const ReceiverDashboard: React.FC = () => {
                 >
                   <span className="text-sm">
                     <span className="font-semibold">{p.trackingId}</span>{" "}
-                    delivered successfully
+                    delivered
                   </span>
                   <span className="text-xs text-slate-400">
                     {new Date(p.updatedAt).toLocaleDateString()}
@@ -158,25 +151,10 @@ const ReceiverDashboard: React.FC = () => {
         <section className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm">
           <h2 className="text-lg font-semibold mb-2">My Parcels</h2>
           <p className="text-xs text-slate-500 mb-3">
-            View incoming parcels and confirm delivery once received.
+            View all incoming parcels and confirm delivery when received.
           </p>
 
-          {/* 
-            IMPORTANT:
-            ParcelTable already controls what actions are available
-            based on role + status. Receiver does NOT edit status here.
-          */}
           <ParcelTable initialLimit={10} />
-        </section>
-
-        {/* ================= STATUS DISTRIBUTION ================= */}
-        <section className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm">
-          <StatusPieChart
-            stats={statsTyped}
-            loading={statsLoading}
-            title="My Parcel Status Distribution"
-            height={320}
-          />
         </section>
       </div>
     </div>
@@ -191,11 +169,26 @@ type StatCardProps = {
   icon: React.ReactNode;
   label: string;
   value: number;
+  highlight?: boolean;
 };
 
-const StatCard: React.FC<StatCardProps> = ({ icon, label, value }) => (
-  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm flex items-center gap-3">
-    <div className="text-xl text-sky-600">{icon}</div>
+const StatCard: React.FC<StatCardProps> = ({
+  icon,
+  label,
+  value,
+  highlight = false,
+}) => (
+  <div
+    className={`p-4 rounded-xl shadow-sm flex items-center gap-3
+      ${
+        highlight
+          ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-400"
+          : "bg-white dark:bg-slate-800"
+      }`}
+  >
+    <div className={`text-xl ${highlight ? "text-amber-500" : "text-sky-600"}`}>
+      {icon}
+    </div>
     <div>
       <div className="text-xs text-slate-500 uppercase">{label}</div>
       <div className="text-2xl font-semibold">{value}</div>

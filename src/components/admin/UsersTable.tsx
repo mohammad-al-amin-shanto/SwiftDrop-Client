@@ -3,6 +3,8 @@ import { useListUsersQuery } from "../../api/usersApi";
 import type { User } from "../../types";
 import UserRow from "./UserRow";
 
+/* ================= UTILITIES ================= */
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -30,21 +32,24 @@ function getErrorMessage(err: unknown): string {
   return "Failed to load users.";
 }
 
-// Helper type for card view
+/* ================= TYPES ================= */
+
 type UserWithFlags = User & {
   blocked?: boolean;
   isBlocked?: boolean;
   shortId?: string;
 };
 
-export const UsersTable: React.FC = () => {
-  const [page, setPage] = useState<number>(1);
-  const [limit, setLimit] = useState<number>(10);
-  const [search, setSearch] = useState<string>("");
-  const [role, setRole] = useState<string>("");
+/* ================= COMPONENT ================= */
+
+const UsersTable: React.FC = () => {
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [search, setSearch] = useState("");
+  const [role, setRole] = useState("");
   const [blocked, setBlocked] = useState<"all" | "blocked" | "active">("all");
 
-  // Backend expects `q` for search
+  /* ---------- Query params ---------- */
   const params = useMemo(
     () => ({
       page,
@@ -60,8 +65,6 @@ export const UsersTable: React.FC = () => {
   const { data, isLoading, isFetching, isError, error, refetch } =
     useListUsersQuery(params);
 
-  console.log("Users API RTK data:", data);
-
   const users: User[] = data?.data ?? [];
   const total = data?.total ?? users.length;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -69,30 +72,40 @@ export const UsersTable: React.FC = () => {
   const loading = isLoading || isFetching;
   const empty = !loading && !isError && users.length === 0;
 
+  /* ================= RENDER ================= */
+
   return (
     <div className="w-full text-sm text-slate-800 dark:text-slate-100">
-      {/* Controls */}
+      {/* ================= HEADER ================= */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+          User Management
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Admin panel to manage platform users, roles, and access status.
+        </p>
+      </div>
+
+      {/* ================= CONTROLS ================= */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Search */}
           <input
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search users..."
-            className="w-48 md:w-60 text-sm border rounded-lg px-3 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Search by name or email…"
+            className="w-48 md:w-60 text-sm border rounded-lg px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-sky-500"
           />
 
-          {/* Role filter */}
           <select
             value={role}
             onChange={(e) => {
               setRole(e.target.value);
               setPage(1);
             }}
-            className="text-sm border rounded-lg px-2 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+            className="text-sm border rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
           >
             <option value="">All roles</option>
             <option value="sender">Sender</option>
@@ -100,119 +113,84 @@ export const UsersTable: React.FC = () => {
             <option value="admin">Admin</option>
           </select>
 
-          {/* Blocked filter */}
           <select
             value={blocked}
-            onChange={(e) =>
-              setBlocked(e.target.value as "all" | "blocked" | "active")
-            }
-            className="text-sm border rounded-lg px-2 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+            onChange={(e) => {
+              const value = e.target.value as "all" | "blocked" | "active";
+              setBlocked(value);
+              setPage(1);
+            }}
+            className="text-sm border rounded-lg px-2 py-2 bg-white dark:bg-slate-800"
           >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="blocked">Blocked</option>
+            <option value="all">All users</option>
+            <option value="active">Active only</option>
+            <option value="blocked">Blocked only</option>
           </select>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Show
-          </span>
           <select
             value={limit}
             onChange={(e) => {
               setLimit(Number(e.target.value));
               setPage(1);
             }}
-            className="text-sm border rounded-lg px-2 py-2 bg-white dark:bg-slate-800 text-slate-900 dark:text-white w-20"
+            className="text-sm border rounded-lg px-2 py-2 bg-white dark:bg-slate-800 w-20"
           >
             <option value={5}>5</option>
             <option value={10}>10</option>
             <option value={25}>25</option>
           </select>
+
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+            className="px-3 py-2 rounded-lg border text-xs hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
           >
             Refresh
           </button>
         </div>
       </div>
 
-      {/* TABLE for md+ screens */}
+      {/* ================= TABLE (DESKTOP) ================= */}
       <div className="hidden md:block">
-        <div className="rounded-lg bg-white/80 dark:bg-slate-900/60">
-          <table className="w-full border-collapse table-fixed">
-            {/* Column widths for more equal distribution & nice gap between Email / Role */}
-            <colgroup>
-              <col className="w-28" /> {/* ID */}
-              <col className="w-40" /> {/* Name */}
-              <col /> {/* Email - flex/remaining space */}
-              <col className="w-28" /> {/* Role */}
-              <col className="w-28" /> {/* Status */}
-              <col className="w-40" /> {/* Actions */}
-            </colgroup>
-
-            <thead className="bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-              <tr className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                <th className="px-3 py-2 text-left">ID</th>
-                <th className="px-3 py-2 text-left">Name</th>
+        <div className="rounded-lg overflow-hidden bg-white dark:bg-slate-900/60 border">
+          <table className="w-full table-fixed">
+            <thead className="bg-slate-100 dark:bg-slate-800 text-xs uppercase">
+              <tr>
+                <th className="px-3 py-2 text-left w-28">ID</th>
+                <th className="px-3 py-2 text-left w-40">Name</th>
                 <th className="px-3 py-2 text-left">Email</th>
-                <th className="px-3 py-2 text-left">Role</th>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-left w-28">Role</th>
+                <th className="px-3 py-2 text-left w-28">Status</th>
+                <th className="px-3 py-2 text-right w-40">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
-                Array.from({ length: limit }).map((_, idx) => (
-                  <tr
-                    key={idx}
-                    className="animate-pulse border-b border-slate-100 dark:border-slate-800"
-                  >
-                    <td className="px-3 py-3">
-                      <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="h-4 w-40 bg-slate-200 dark:bg-slate-700 rounded" />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="h-4 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded" />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="h-4 w-24 bg-slate-200 dark:bg-slate-700 rounded ml-auto" />
+                Array.from({ length: limit }).map((_, i) => (
+                  <tr key={i} className="animate-pulse border-t">
+                    <td colSpan={6} className="px-3 py-3">
+                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded" />
                     </td>
                   </tr>
                 ))
               ) : isError ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="p-6 text-center text-red-500 text-sm"
-                  >
+                  <td colSpan={6} className="p-6 text-center text-red-500">
                     {getErrorMessage(error)}
                   </td>
                 </tr>
               ) : empty ? (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="p-6 text-center text-sm text-slate-500 dark:text-slate-300"
-                  >
+                  <td colSpan={6} className="p-6 text-center text-slate-500">
                     No users found.
                   </td>
                 </tr>
               ) : (
                 users.map((u) => (
-                  <UserRow key={u._id} user={u} onUpdated={() => refetch()} />
+                  <UserRow key={u._id} user={u} onUpdated={refetch} />
                 ))
               )}
             </tbody>
@@ -220,143 +198,72 @@ export const UsersTable: React.FC = () => {
         </div>
       </div>
 
-      {/* CARD LIST for small screens */}
+      {/* ================= MOBILE CARDS ================= */}
       <div className="md:hidden space-y-3">
-        {loading ? (
-          Array.from({ length: Math.max(3, Math.min(limit, 6)) }).map(
-            (_, idx) => (
-              <div
-                key={idx}
-                className="animate-pulse bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-lg p-3"
-              >
-                <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
-                <div className="h-3 w-40 bg-slate-200 dark:bg-slate-700 rounded mb-1" />
-                <div className="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded" />
+        {users.map((u) => {
+          const ext = u as UserWithFlags;
+          const isBlocked =
+            typeof ext.isBlocked === "boolean"
+              ? ext.isBlocked
+              : ext.blocked ?? false;
+
+          return (
+            <article
+              key={u._id}
+              className="border rounded-lg p-3 bg-white dark:bg-slate-900"
+            >
+              <div className="font-semibold">{u.name || "Unnamed user"}</div>
+              <div className="text-xs text-slate-500 break-all">{u.email}</div>
+
+              <div className="mt-2 flex justify-between items-center">
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+                  {u.role}
+                </span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded ${
+                    isBlocked
+                      ? "bg-rose-100 text-rose-700"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  {isBlocked ? "Blocked" : "Active"}
+                </span>
               </div>
-            )
-          )
-        ) : isError ? (
-          <div className="p-4 text-center text-red-500 text-sm">
-            {getErrorMessage(error)}
-          </div>
-        ) : empty ? (
-          <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-300">
-            No users found.
-          </div>
-        ) : (
-          users.map((u) => {
-            const extended = u as UserWithFlags;
-
-            const name = extended.name ?? "Unnamed user";
-            const email = extended.email ?? "No email";
-            const role = (extended as Partial<User>).role ?? "—";
-            const isBlocked =
-              typeof extended.isBlocked === "boolean"
-                ? extended.isBlocked
-                : typeof extended.blocked === "boolean"
-                ? extended.blocked
-                : false;
-
-            // Prefer shortId; fall back to Mongo _id if somehow missing
-            const displayId = extended.shortId || extended._id;
-
-            return (
-              <article
-                key={u._id}
-                className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-lg p-3"
-              >
-                <div className="flex flex-col gap-2">
-                  {/* Top: Name + Email + ID */}
-                  <div className="space-y-1">
-                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      {name}
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-300 break-all">
-                      {email}
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      ID:{" "}
-                      <span className="font-mono text-slate-700 dark:text-slate-200">
-                        {displayId}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Divider for visual separation */}
-                  <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
-
-                  {/* Bottom: Role + Status aligned to right */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs text-slate-500 dark:text-slate-300">
-                      Role
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                        {role}
-                      </div>
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] ${
-                          isBlocked
-                            ? "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
-                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                        }`}
-                      >
-                        {isBlocked ? "Blocked" : "Active"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })
-        )}
+            </article>
+          );
+        })}
       </div>
 
-      {/* Footer / pagination */}
-      <div className="mt-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-300">
+      {/* ================= PAGINATION ================= */}
+      <div className="mt-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
         <div>
-          Showing{" "}
-          <span className="font-semibold text-slate-700 dark:text-slate-100">
-            {users.length}
-          </span>{" "}
-          of{" "}
-          <span className="font-semibold text-slate-700 dark:text-slate-100">
-            {total}
-          </span>{" "}
-          users
+          Showing <b>{users.length}</b> of <b>{total}</b> users
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setPage(1)}
-            disabled={page === 1}
-            className="px-3 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs disabled:opacity-50"
-          >
-            « First
+        <div className="flex gap-2">
+          <button onClick={() => setPage(1)} disabled={page === 1}>
+            «
           </button>
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs disabled:opacity-50"
           >
-            ‹ Prev
+            ‹
           </button>
-          <span className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-700 text-xs">
+          <span>
             Page {page} / {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-3 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs disabled:opacity-50"
           >
-            Next ›
+            ›
           </button>
           <button
             onClick={() => setPage(totalPages)}
             disabled={page === totalPages}
-            className="px-3 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs disabled:opacity-50"
           >
-            Last »
+            »
           </button>
         </div>
       </div>
