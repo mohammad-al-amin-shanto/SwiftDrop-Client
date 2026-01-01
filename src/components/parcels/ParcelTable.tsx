@@ -171,15 +171,9 @@ export const ParcelTable: React.FC<Props> = ({
   const { parcels, total } = normalizeListResponse(data);
 
   // 🔐 Permission helpers
-  function canSenderCancel(parcel: Parcel) {
+  function canSenderAdvance(parcel: Parcel) {
     const s = (parcel.status ?? "").toLowerCase();
-    return ![
-      "dispatched",
-      "in_transit",
-      "intransit",
-      "delivered",
-      "cancelled",
-    ].includes(s);
+    return ["pending", "collected", "dispatched", "in_transit"].includes(s);
   }
 
   function canReceiverConfirm(parcel: Parcel) {
@@ -188,7 +182,7 @@ export const ParcelTable: React.FC<Props> = ({
 
   function canAdminAdvance(parcel: Parcel) {
     const s = (parcel.status ?? "").toLowerCase();
-    return !["delivered", "cancelled"].includes(s);
+    return !["received", "cancelled"].includes(s);
   }
 
   useEffect(() => {
@@ -221,10 +215,9 @@ export const ParcelTable: React.FC<Props> = ({
   // ✅ Confirm handler: step-wise status transitions, lowercase to match backend
   const handleConfirm = async (parcel: Parcel) => {
     const id = parcel._id;
-    const currentRaw = parcel.status ?? "";
-    const current = currentRaw.toLowerCase();
+    const current = (parcel.status ?? "").toLowerCase();
 
-    // 🟢 Receiver: can ONLY confirm delivery
+    /* ================= RECEIVER ================= */
     if (isReceiver) {
       if (!canReceiverConfirm(parcel)) {
         toast.info("You can confirm only after delivery.");
@@ -234,10 +227,11 @@ export const ParcelTable: React.FC<Props> = ({
       try {
         await updateStatus({
           id,
-          status: "confirmed",
-          note: "Delivery confirmed by receiver",
+          status: "received",
+          note: "Parcel received by receiver",
         }).unwrap();
-        toast.success("Delivery confirmed");
+
+        toast.success("Parcel marked as received");
         refetch();
       } catch (err) {
         toast.error(getErrorMessage(err));
@@ -245,20 +239,16 @@ export const ParcelTable: React.FC<Props> = ({
       return;
     }
 
-    // 🔵 Sender: NO confirm permission
+    /* ================= SENDER ================= */
     if (isSender && !isAdmin) {
-      toast.info("Senders cannot confirm delivery.");
-      return;
-    }
+      if (!canSenderAdvance(parcel)) {
+        toast.info("You cannot update this parcel further.");
+        return;
+      }
 
-    // 🔴 Admin: lifecycle advance
-    if (isAdmin && canAdminAdvance(parcel)) {
       let nextStatus: string;
 
       switch (current) {
-        case "created":
-          nextStatus = "pending";
-          break;
         case "pending":
           nextStatus = "collected";
           break;
@@ -266,9 +256,49 @@ export const ParcelTable: React.FC<Props> = ({
           nextStatus = "dispatched";
           break;
         case "dispatched":
+          nextStatus = "in_transit";
+          break;
         case "in_transit":
-        case "intransit":
           nextStatus = "delivered";
+          break;
+        default:
+          return;
+      }
+
+      try {
+        await updateStatus({
+          id,
+          status: nextStatus,
+          note: `Sender updated status to ${nextStatus}`,
+        }).unwrap();
+
+        toast.success(`Status updated to ${nextStatus}`);
+        refetch();
+      } catch (err) {
+        toast.error(getErrorMessage(err));
+      }
+      return;
+    }
+
+    /* ================= ADMIN ================= */
+    if (isAdmin && canAdminAdvance(parcel)) {
+      let nextStatus: string;
+
+      switch (current) {
+        case "pending":
+          nextStatus = "collected";
+          break;
+        case "collected":
+          nextStatus = "dispatched";
+          break;
+        case "dispatched":
+          nextStatus = "in_transit";
+          break;
+        case "in_transit":
+          nextStatus = "delivered";
+          break;
+        case "delivered":
+          nextStatus = "received";
           break;
         default:
           return;
@@ -280,6 +310,7 @@ export const ParcelTable: React.FC<Props> = ({
           status: nextStatus,
           note: `Admin updated status to ${nextStatus}`,
         }).unwrap();
+
         toast.success(`Status updated to ${nextStatus}`);
         refetch();
       } catch (err) {
@@ -445,16 +476,27 @@ export const ParcelTable: React.FC<Props> = ({
                 </td>
               </tr>
             ) : (
-              parcels.map((p) => (
-                <ParcelRow
-                  key={p._id}
-                  parcel={p}
-                  onView={handleView}
-                  onCancel={handleCancel}
-                  onConfirm={handleConfirm}
-                  showConfirm={showConfirmAll}
-                />
-              ))
+              parcels.map((p) => {
+                const canConfirm =
+                  (isReceiver && canReceiverConfirm(p)) ||
+                  (isSender && canSenderAdvance(p)) ||
+                  isAdmin;
+
+                const canCancel = (isSender && canSenderAdvance(p)) || isAdmin;
+
+                return (
+                  <ParcelRow
+                    key={p._id}
+                    parcel={p}
+                    onView={handleView}
+                    onCancel={handleCancel}
+                    onConfirm={handleConfirm}
+                    canConfirm={canConfirm}
+                    canCancel={canCancel}
+                    showConfirm={showConfirmAll}
+                  />
+                );
+              })
             )}
           </tbody>
         </table>
@@ -486,10 +528,17 @@ export const ParcelTable: React.FC<Props> = ({
             const withRelations = p as ParcelWithRelations;
             const receiver = withRelations.receiver ?? withRelations.receiverId;
 
+            function canSenderCancel(parcel: Parcel) {
+              const s = (parcel.status ?? "").toLowerCase();
+              return ["pending", "collected"].includes(s);
+            }
+
             const canCancelMobile = (isSender && canSenderCancel(p)) || isAdmin;
 
             const canConfirmMobile =
-              (isReceiver && canReceiverConfirm(p)) || isAdmin;
+              (isReceiver && canReceiverConfirm(p)) ||
+              (isSender && canSenderAdvance(p)) ||
+              isAdmin;
 
             return (
               <article

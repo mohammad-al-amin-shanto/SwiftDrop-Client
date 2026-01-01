@@ -76,16 +76,6 @@ const UsersTable: React.FC = () => {
 
   return (
     <div className="w-full text-sm text-slate-800 dark:text-slate-100">
-      {/* ================= HEADER ================= */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-          User Management
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Admin panel to manage platform users, roles, and access status.
-        </p>
-      </div>
-
       {/* ================= CONTROLS ================= */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">

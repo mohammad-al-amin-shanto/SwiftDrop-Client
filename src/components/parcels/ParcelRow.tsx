@@ -1,12 +1,17 @@
 import React from "react";
 import type { Parcel, User } from "../../types";
 import { format } from "date-fns";
+import { useAppSelector } from "../../app/hooks";
 
 type Props = {
   parcel: Parcel;
   onView: (p: Parcel) => void;
   onCancel: (id: string) => void;
-  onConfirm?: (p: Parcel) => void;
+  onConfirm: (parcel: Parcel) => void;
+
+  canConfirm?: boolean;
+  canCancel?: boolean;
+
   showConfirm?: boolean;
 };
 
@@ -36,8 +41,12 @@ export const ParcelRow: React.FC<Props> = ({
   onView,
   onCancel,
   onConfirm,
+  canConfirm,
+  canCancel,
   showConfirm = false,
 }) => {
+  const role = useAppSelector((s) => s.auth.user?.role);
+
   const extended = parcel as ParcelWithExtras;
 
   // logs may be `logs` (old) or `statusLogs` (new)
@@ -53,15 +62,29 @@ export const ParcelRow: React.FC<Props> = ({
   const latestStatus = latestStatusRaw ?? "-";
   const statusLower = (latestStatusRaw ?? "").toLowerCase();
 
-  const canCancel = ![
-    "dispatched",
-    "delivered",
-    "cancelled",
-    "in_transit",
-    "intransit",
-  ].includes(statusLower);
+  const canCancelFinal =
+    canCancel ??
+    !["dispatched", "delivered", "cancelled", "in_transit"].includes(
+      statusLower
+    );
 
-  const canConfirm = !["delivered", "cancelled"].includes(statusLower);
+  const canConfirmFinal =
+    canConfirm ?? !["delivered", "cancelled"].includes(statusLower);
+
+  const confirmLabel = (() => {
+    if (!canConfirmFinal) return "Confirm";
+
+    switch (role) {
+      case "sender":
+        return "Advance";
+      case "receiver":
+        return "Confirm Received";
+      case "admin":
+        return "Update Status";
+      default:
+        return "Confirm";
+    }
+  })();
 
   // receiver may be at `receiver` or `receiverId`
   const rawReceiver = extended.receiver ?? extended.receiverId;
@@ -164,9 +187,9 @@ export const ParcelRow: React.FC<Props> = ({
             type="button"
             onClick={() => onView(parcel)}
             className="inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-semibold
-              bg-sky-600 hover:bg-sky-700
-              dark:bg-sky-500 dark:hover:bg-sky-600
-              text-white"
+      bg-sky-600 hover:bg-sky-700
+      dark:bg-sky-500 dark:hover:bg-sky-600
+      text-white"
           >
             View
           </button>
@@ -176,18 +199,18 @@ export const ParcelRow: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => {
-                if (canConfirm) onConfirm?.(parcel);
+                if (canConfirmFinal) onConfirm(parcel);
               }}
-              disabled={!canConfirm}
-              aria-disabled={!canConfirm}
+              disabled={!canConfirmFinal}
+              aria-disabled={!canConfirmFinal}
               className={`inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-semibold border
-                ${
-                  canConfirm
-                    ? "bg-green-600 hover:bg-green-700 text-white border-transparent"
-                    : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
-                }`}
+        ${
+          canConfirmFinal
+            ? "bg-green-600 hover:bg-green-700 text-white border-transparent"
+            : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
+        }`}
             >
-              Confirm
+              {confirmLabel}
             </button>
           )}
 
@@ -195,16 +218,16 @@ export const ParcelRow: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => {
-              if (canCancel) onCancel(parcel._id);
+              if (canCancelFinal) onCancel(parcel._id);
             }}
-            disabled={!canCancel}
-            aria-disabled={!canCancel}
+            disabled={!canCancelFinal}
+            aria-disabled={!canCancelFinal}
             className={`inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-semibold border
-              ${
-                canCancel
-                  ? "bg-red-600 hover:bg-red-700 text-white border-transparent"
-                  : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
-              }`}
+      ${
+        canCancelFinal
+          ? "bg-red-600 hover:bg-red-700 text-white border-transparent"
+          : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
+      }`}
           >
             Cancel
           </button>

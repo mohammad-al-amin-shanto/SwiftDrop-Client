@@ -19,7 +19,10 @@ const AdminDashboard: React.FC = () => {
   const inTransit = stats?.inTransit ?? 0;
   const cancelled = stats?.cancelled ?? 0;
 
-  const isStatsLoading = isLoading && !stats;
+  const isStatsLoading = isLoading || !stats;
+
+  const pending = Math.max(total - (delivered + inTransit + cancelled), 0);
+  const hasOperationalIssues = pending > 10;
 
   return (
     <div className="px-3 sm:px-4 md:px-6 py-4 md:py-6">
@@ -28,9 +31,18 @@ const AdminDashboard: React.FC = () => {
         <section className="bg-white dark:bg-slate-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1 sm:space-y-2 text-center md:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50">
-                Admin Dashboard
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50">
+                  Admin Dashboard
+                </h1>
+
+                {hasOperationalIssues && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-medium">
+                    ⚠ Operational backlog
+                  </span>
+                )}
+              </div>
+
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-xl mx-auto md:mx-0">
                 Monitor parcel activity, user accounts, and overall system
                 health from a single, centralized view.
@@ -64,7 +76,7 @@ const AdminDashboard: React.FC = () => {
         </section>
 
         {/* STATS CARDS */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           {/* Total Parcels */}
           <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl hover:shadow-md transition flex items-center gap-3 sm:gap-4">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 shrink-0">
@@ -80,17 +92,47 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Delivered */}
-          <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl hover:shadow-md transition flex items-center gap-3 sm:gap-4">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 shrink-0">
-              <FaCheckCircle className="text-sm sm:text-base" />
+          {/* Pending */}
+          <div
+            className={`shadow-sm border rounded-xl p-3.5 sm:p-4 transition flex items-center gap-3 sm:gap-4
+    ${
+      hasOperationalIssues
+        ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20"
+        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+    }`}
+          >
+            <div
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0
+      ${
+        hasOperationalIssues
+          ? "bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200"
+          : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300"
+      }`}
+            >
+              ⏳
             </div>
+
             <div className="min-w-0">
-              <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 truncate">
-                Delivered
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 truncate">
+                  Pending
+                </span>
+
+                {hasOperationalIssues && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 font-medium">
+                    Attention
+                  </span>
+                )}
               </div>
-              <div className="text-xl sm:text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
-                {isStatsLoading ? "—" : delivered}
+
+              <div
+                className={`text-xl sm:text-2xl font-semibold ${
+                  hasOperationalIssues
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {isStatsLoading ? "—" : pending}
               </div>
             </div>
           </div>
@@ -106,6 +148,21 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div className="text-xl sm:text-2xl font-semibold text-blue-600 dark:text-blue-400">
                 {isStatsLoading ? "—" : inTransit}
+              </div>
+            </div>
+          </div>
+
+          {/* Delivered */}
+          <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl hover:shadow-md transition flex items-center gap-3 sm:gap-4">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 shrink-0">
+              <FaCheckCircle className="text-sm sm:text-base" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400 truncate">
+                Delivered
+              </div>
+              <div className="text-xl sm:text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
+                {isStatsLoading ? "—" : delivered}
               </div>
             </div>
           </div>
@@ -129,21 +186,25 @@ const AdminDashboard: React.FC = () => {
         {/* CHARTS – STACKED ON SMALL, SIDE-BY-SIDE ON LG */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
           <div className="lg:col-span-2">
-            <ShipmentsBarChart
-              data={stats?.monthly ?? []}
-              loading={isLoading}
-              title="Monthly Shipments"
-              height={320}
-            />
+            {stats && (
+              <ShipmentsBarChart
+                data={stats?.monthly ?? []}
+                loading={isLoading}
+                title="Monthly Shipments"
+                height={320}
+              />
+            )}
           </div>
 
           <div>
-            <StatusPieChart
-              stats={stats}
-              loading={isLoading}
-              title="Status Distribution"
-              height={320}
-            />
+            {stats && (
+              <StatusPieChart
+                stats={stats}
+                loading={isLoading}
+                title="Status Distribution"
+                height={320}
+              />
+            )}
           </div>
         </section>
 
