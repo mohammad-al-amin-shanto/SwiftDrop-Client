@@ -182,7 +182,8 @@ export const ParcelTable: React.FC<Props> = ({
 
   function canAdminAdvance(parcel: Parcel) {
     const s = (parcel.status ?? "").toLowerCase();
-    return !["received", "cancelled"].includes(s);
+
+    return ["pending", "collected", "dispatched", "in_transit"].includes(s);
   }
 
   useEffect(() => {
@@ -480,9 +481,12 @@ export const ParcelTable: React.FC<Props> = ({
                 const canConfirm =
                   (isReceiver && canReceiverConfirm(p)) ||
                   (isSender && canSenderAdvance(p)) ||
-                  isAdmin;
+                  (isAdmin && canAdminAdvance(p));
 
-                const canCancel = (isSender && canSenderAdvance(p)) || isAdmin;
+                const canCancel =
+                  (isSender && canSenderAdvance(p)) ||
+                  (isAdmin &&
+                    ["pending"].includes((p.status ?? "").toLowerCase()));
 
                 return (
                   <ParcelRow
@@ -527,17 +531,16 @@ export const ParcelTable: React.FC<Props> = ({
           parcels.map((p) => {
             const withRelations = p as ParcelWithRelations;
             const receiver = withRelations.receiver ?? withRelations.receiverId;
-
-            function canSenderCancel(parcel: Parcel) {
-              const s = (parcel.status ?? "").toLowerCase();
-              return ["pending", "collected"].includes(s);
-            }
-
-            const canCancelMobile = (isSender && canSenderCancel(p)) || isAdmin;
-
-            const canConfirmMobile =
+            const canConfirm =
               (isReceiver && canReceiverConfirm(p)) ||
               (isSender && canSenderAdvance(p)) ||
+              (isAdmin && canAdminAdvance(p));
+
+            const canCancel =
+              (isSender &&
+                ["pending", "collected"].includes(
+                  (p.status ?? "").toLowerCase()
+                )) ||
               isAdmin;
 
             return (
@@ -576,47 +579,41 @@ export const ParcelTable: React.FC<Props> = ({
                   <button
                     onClick={() => handleView(p)}
                     className="inline-flex items-center px-3 py-1 rounded text-sm font-medium
-                      bg-sky-600 hover:bg-sky-700
-                      dark:bg-sky-500 dark:hover:bg-sky-600
-                      text-white dark:text-white
-                      border border-transparent"
-                    aria-label={`View parcel ${p.trackingId}`}
+    bg-sky-600 hover:bg-sky-700 text-white"
                   >
                     View
                   </button>
 
                   <button
-                    onClick={() => {
-                      if (canConfirmMobile) handleConfirm(p);
-                    }}
-                    disabled={!canConfirmMobile}
-                    aria-disabled={!canConfirmMobile}
-                    className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
-                      ${
-                        canConfirmMobile
-                          ? "bg-green-600 hover:bg-green-700 text-white border-transparent"
-                          : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
-                      }
-                    `}
-                    aria-label={`Confirm parcel ${p.trackingId}`}
+                    onClick={() => canConfirm && handleConfirm(p)}
+                    disabled={!canConfirm}
+                    className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium
+    ${
+      canConfirm
+        ? "bg-green-600 hover:bg-green-700 text-white"
+        : "bg-slate-200 text-slate-400 cursor-not-allowed"
+    }
+  `}
                   >
-                    Confirm
+                    {isSender
+                      ? "Advance"
+                      : isReceiver
+                      ? "Received"
+                      : isAdmin
+                      ? "Update Status"
+                      : "Confirm"}
                   </button>
 
                   <button
-                    onClick={() => {
-                      if (canCancelMobile) handleCancel(p._id);
-                    }}
-                    disabled={!canCancelMobile}
-                    aria-disabled={!canCancelMobile}
-                    className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium border
-                      ${
-                        canCancelMobile
-                          ? "bg-red-600 hover:bg-red-700 text-white border-transparent"
-                          : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
-                      }
-                    `}
-                    aria-label={`Cancel parcel ${p.trackingId}`}
+                    onClick={() => canCancel && handleCancel(p._id)}
+                    disabled={!canCancel}
+                    className={`inline-flex items-center px-3 py-1 rounded text-sm font-medium
+    ${
+      canCancel
+        ? "bg-red-600 hover:bg-red-700 text-white"
+        : "bg-slate-200 text-slate-400 cursor-not-allowed"
+    }
+  `}
                   >
                     Cancel
                   </button>

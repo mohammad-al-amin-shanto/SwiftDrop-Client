@@ -7,6 +7,10 @@ import {
 } from "../../api/usersApi";
 import { toast } from "react-toastify";
 
+type UserWithBlockedFlag = User & {
+  blocked?: boolean;
+};
+
 /* ================= UTIL ================= */
 
 function extractErrorMessage(err: unknown): string {
@@ -53,7 +57,14 @@ const UserRow: React.FC<Props> = ({ user, onUpdated }) => {
   const canChangeRole = isAdmin && !isSelf;
   const canBlockUser = isAdmin && !isSelf;
 
-  const isBlocked = !!user.isBlocked;
+  const u = user as UserWithBlockedFlag;
+
+  const isBlocked =
+    typeof u.isBlocked === "boolean"
+      ? u.isBlocked
+      : typeof u.blocked === "boolean"
+      ? u.blocked
+      : false;
 
   /* ================= ACTIONS ================= */
 
@@ -65,9 +76,13 @@ const UserRow: React.FC<Props> = ({ user, onUpdated }) => {
 
     setLoading(true);
     try {
-      await blockUser({ id: user._id, block: !isBlocked }).unwrap();
+      await blockUser({
+        id: user._id,
+        block: !isBlocked,
+      }).unwrap();
+
       toast.success(`${action}ed ${user.name}`);
-      onUpdated?.();
+      onUpdated?.(); // 🔥 refetch table
     } catch (err) {
       toast.error(extractErrorMessage(err));
     } finally {
@@ -140,7 +155,10 @@ const UserRow: React.FC<Props> = ({ user, onUpdated }) => {
               value={user.role}
               onChange={(e) => changeRole(e.target.value as Role)}
               disabled={!canChangeRole || loading}
-              className="text-xs border rounded px-2 py-1 disabled:opacity-50"
+              className="text-xs border rounded px-2 py-1 
+bg-white dark:bg-slate-800 
+text-slate-800 dark:text-slate-100 
+disabled:opacity-50"
             >
               <option value="sender">Sender</option>
               <option value="receiver">Receiver</option>
@@ -154,15 +172,14 @@ const UserRow: React.FC<Props> = ({ user, onUpdated }) => {
           {canManageUsers && (
             <button
               onClick={toggleBlock}
-              disabled={!canBlockUser || loading}
-              className={`px-3 py-1.5 text-xs font-semibold border rounded
-                ${
-                  isBlocked
-                    ? "border-emerald-600 text-emerald-700 hover:bg-emerald-50"
-                    : "border-rose-600 text-rose-700 hover:bg-rose-50"
-                }
-                disabled:opacity-50
-              `}
+              disabled={loading}
+              className={`px-2 py-1 rounded text-xs font-medium border
+    ${
+      isBlocked
+        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+        : "bg-rose-600 hover:bg-rose-700 text-white"
+    }
+  `}
             >
               {isBlocked ? "Unblock" : "Block"}
             </button>

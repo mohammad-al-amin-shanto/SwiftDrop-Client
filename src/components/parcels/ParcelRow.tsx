@@ -68,17 +68,32 @@ export const ParcelRow: React.FC<Props> = ({
       statusLower
     );
 
-  const canConfirmFinal =
-    canConfirm ?? !["delivered", "cancelled"].includes(statusLower);
+  const canConfirmFinal = (() => {
+    if (typeof canConfirm === "boolean") return canConfirm;
+
+    switch (role) {
+      case "sender":
+        return ["pending", "collected", "dispatched", "in_transit"].includes(
+          statusLower
+        );
+
+      case "receiver":
+        return statusLower === "delivered";
+
+      case "admin":
+        return !["received", "cancelled"].includes(statusLower);
+
+      default:
+        return false;
+    }
+  })();
 
   const confirmLabel = (() => {
-    if (!canConfirmFinal) return "Confirm";
-
     switch (role) {
       case "sender":
         return "Advance";
       case "receiver":
-        return "Confirm Received";
+        return "Received";
       case "admin":
         return "Update Status";
       default:
