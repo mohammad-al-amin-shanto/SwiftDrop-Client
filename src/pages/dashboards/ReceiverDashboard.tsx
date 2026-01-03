@@ -6,6 +6,7 @@ import { useListParcelsQuery } from "../../api/parcelsApi";
 import { useAppSelector } from "../../app/hooks";
 import { useGetReceiverDashboardQuery } from "../../api/dashboardApi";
 import { DashboardTour } from "./../../components/ui/DashboardTour";
+import StatCard from "./../../components/ui/StatCard";
 
 /* ================= TYPES ================= */
 
@@ -81,7 +82,9 @@ const ReceiverDashboard: React.FC = () => {
           className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm"
         >
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-            Welcome{user?.name ? `, ${user.name}` : ""} 👋
+            {statsLoading
+              ? "Loading dashboard…"
+              : `Welcome${user?.name ? `, ${user.name}` : ""} 👋`}
           </h1>
           <p className="text-sm text-slate-500">
             Track your incoming parcels and take action when required.
@@ -96,32 +99,32 @@ const ReceiverDashboard: React.FC = () => {
           <StatCard
             icon={<FaBoxOpen />}
             label="Expected Parcels"
-            value={statsLoading ? 0 : stats?.totalExpected ?? 0}
+            value={statsLoading ? undefined : stats?.totalExpected}
           />
 
           <StatCard
             icon={<FaTruck />}
             label="In Transit"
-            value={statsLoading ? 0 : stats?.inTransit ?? 0}
+            value={statsLoading ? undefined : stats?.inTransit}
           />
 
           <StatCard
             icon={<FaCheckCircle />}
             label="Delivered"
-            value={statsLoading ? 0 : stats?.delivered ?? 0}
+            value={statsLoading ? undefined : stats?.delivered}
           />
 
           <StatCard
             icon={<FaClock />}
             label="Arriving Today"
-            value={statsLoading ? 0 : stats?.arrivingToday ?? 0}
+            value={statsLoading ? undefined : stats?.arrivingToday}
           />
 
           <StatCard
             icon={<FaCheckCircle />}
             label="Action Required"
-            value={statsLoading ? 0 : stats?.awaitingConfirmation ?? 0}
-            highlight={(stats?.awaitingConfirmation ?? 0) > 0}
+            value={statsLoading ? undefined : stats?.awaitingConfirmation}
+            highlight={!statsLoading && (stats?.awaitingConfirmation ?? 0) > 0}
           />
         </section>
 
@@ -132,7 +135,11 @@ const ReceiverDashboard: React.FC = () => {
         >
           <h2 className="font-semibold mb-3">Recent Deliveries</h2>
 
-          {recentDeliveries.length === 0 ? (
+          {statsLoading ? (
+            <p className="text-sm text-slate-400 animate-pulse">
+              Loading recent deliveries…
+            </p>
+          ) : recentDeliveries.length === 0 ? (
             <p className="text-sm text-slate-500">
               No completed deliveries yet.
             </p>
@@ -174,36 +181,3 @@ const ReceiverDashboard: React.FC = () => {
 };
 
 export default ReceiverDashboard;
-
-/* ================= UI ================= */
-
-type StatCardProps = {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  highlight?: boolean;
-};
-
-const StatCard: React.FC<StatCardProps> = ({
-  icon,
-  label,
-  value,
-  highlight = false,
-}) => (
-  <div
-    className={`p-4 rounded-xl shadow-sm flex items-center gap-3
-      ${
-        highlight
-          ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-400"
-          : "bg-white dark:bg-slate-800"
-      }`}
-  >
-    <div className={`text-xl ${highlight ? "text-amber-500" : "text-sky-600"}`}>
-      {icon}
-    </div>
-    <div>
-      <div className="text-xs text-slate-500 uppercase">{label}</div>
-      <div className="text-2xl font-semibold">{value}</div>
-    </div>
-  </div>
-);

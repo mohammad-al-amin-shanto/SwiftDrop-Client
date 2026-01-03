@@ -55,9 +55,9 @@ const AdminDashboard: React.FC = () => {
 
             <div className="flex flex-col items-center md:items-end text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 gap-0.5">
               {isStatsLoading ? (
-                <div className="animate-pulse text-slate-400 dark:text-slate-500">
-                  Loading stats...
-                </div>
+                <span className="text-xs text-slate-400 animate-pulse">
+                  Fetching system metrics…
+                </span>
               ) : (
                 <>
                   <span className="font-medium">
@@ -94,7 +94,11 @@ const AdminDashboard: React.FC = () => {
                 Total Parcels
               </div>
               <div className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-white">
-                {isStatsLoading ? "—" : total}
+                {isStatsLoading ? (
+                  <span className="animate-pulse text-slate-400">--</span>
+                ) : (
+                  total
+                )}
               </div>
             </div>
           </div>
@@ -139,7 +143,11 @@ const AdminDashboard: React.FC = () => {
                     : "text-amber-600 dark:text-amber-400"
                 }`}
               >
-                {isStatsLoading ? "—" : pending}
+                {isStatsLoading ? (
+                  <span className="animate-pulse text-slate-400">--</span>
+                ) : (
+                  pending
+                )}
               </div>
             </div>
           </div>
@@ -154,7 +162,11 @@ const AdminDashboard: React.FC = () => {
                 In Transit
               </div>
               <div className="text-xl sm:text-2xl font-semibold text-blue-600 dark:text-blue-400">
-                {isStatsLoading ? "—" : inTransit}
+                {isStatsLoading ? (
+                  <span className="animate-pulse text-slate-400">--</span>
+                ) : (
+                  inTransit
+                )}
               </div>
             </div>
           </div>
@@ -169,7 +181,11 @@ const AdminDashboard: React.FC = () => {
                 Delivered
               </div>
               <div className="text-xl sm:text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
-                {isStatsLoading ? "—" : delivered}
+                {isStatsLoading ? (
+                  <span className="animate-pulse text-slate-400">--</span>
+                ) : (
+                  delivered
+                )}
               </div>
             </div>
           </div>
@@ -184,7 +200,11 @@ const AdminDashboard: React.FC = () => {
                 Cancelled
               </div>
               <div className="text-xl sm:text-2xl font-semibold text-rose-600 dark:text-rose-400">
-                {isStatsLoading ? "—" : cancelled}
+                {isStatsLoading ? (
+                  <span className="animate-pulse text-slate-400">--</span>
+                ) : (
+                  cancelled
+                )}
               </div>
             </div>
           </div>
@@ -195,25 +215,43 @@ const AdminDashboard: React.FC = () => {
           data-driver-id="charts"
           className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start"
         >
+          {/* ================= MONTHLY SHIPMENTS ================= */}
           <div className="lg:col-span-2">
-            {stats && (
+            {isStatsLoading ? (
+              <div className="h-80 flex items-center justify-center text-sm text-slate-400 animate-pulse">
+                Loading shipment trends…
+              </div>
+            ) : stats && stats.monthly?.length ? (
               <ShipmentsBarChart
-                data={stats?.monthly ?? []}
-                loading={isLoading}
+                data={stats.monthly}
+                loading={false}
                 title="Monthly Shipments"
                 height={320}
               />
+            ) : (
+              <div className="h-80 flex items-center justify-center text-sm text-slate-500">
+                No shipment data available yet
+              </div>
             )}
           </div>
 
+          {/* ================= STATUS DISTRIBUTION ================= */}
           <div>
-            {stats && (
+            {isStatsLoading ? (
+              <div className="h-80 flex items-center justify-center text-sm text-slate-400 animate-pulse">
+                Loading status breakdown…
+              </div>
+            ) : stats ? (
               <StatusPieChart
                 stats={stats}
-                loading={isLoading}
+                loading={false}
                 title="Status Distribution"
                 height={320}
               />
+            ) : (
+              <div className="h-80 flex items-center justify-center text-sm text-slate-500">
+                No status data available
+              </div>
             )}
           </div>
         </section>

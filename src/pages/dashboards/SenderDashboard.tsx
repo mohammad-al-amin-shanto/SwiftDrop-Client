@@ -21,6 +21,7 @@ import {
 import ShipmentsBarChart from "../../components/charts/ShipmentsBarChart";
 import StatusPieChart from "../../components/charts/StatusPieChart";
 import DashboardTour from "../../components/ui/DashboardTour";
+import StatCard from "./../../components/ui/StatCard";
 
 /* ================= TYPES (MATCH BACKEND EXACTLY) ================= */
 
@@ -166,22 +167,26 @@ const SenderDashboard: React.FC = () => {
           <StatCard
             icon={<FaBoxOpen />}
             label="Total Parcels"
-            value={statsTyped?.total ?? 0}
+            value={loading ? undefined : statsTyped?.total}
           />
+
           <StatCard
             icon={<FaCheckCircle />}
             label="Delivered"
-            value={statsTyped?.delivered ?? 0}
+            value={loading ? undefined : statsTyped?.delivered}
           />
+
           <StatCard
             icon={<FaTruck />}
             label="In Transit"
-            value={statsTyped?.inTransit ?? 0}
+            value={loading ? undefined : statsTyped?.inTransit}
           />
+
           <StatCard
             icon={<FaTimesCircle />}
             label="Cancelled"
-            value={statsTyped?.cancelled ?? 0}
+            value={loading ? undefined : statsTyped?.cancelled}
+            highlight={(statsTyped?.cancelled ?? 0) > 0}
           />
         </section>
 
@@ -192,7 +197,11 @@ const SenderDashboard: React.FC = () => {
             Attention Required
           </h2>
 
-          {attentionRequired.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-slate-400 animate-pulse">
+              Checking parcels…
+            </p>
+          ) : attentionRequired.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-300">
               No parcels need attention 🎉
             </p>
@@ -246,7 +255,11 @@ const SenderDashboard: React.FC = () => {
             Recent Activity
           </h2>
 
-          {recentActivity.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-slate-400 animate-pulse">
+              Loading activity…
+            </p>
+          ) : recentActivity.length === 0 ? (
             <p className="text-sm text-slate-500">
               No recent parcel activity yet
             </p>
@@ -357,20 +370,4 @@ const ActionCard: React.FC<ActionCardProps> = ({ icon, label, onClick }) => (
     <div className="text-xl text-sky-600">{icon}</div>
     <div className="text-sm font-medium">{label}</div>
   </button>
-);
-
-type StatCardProps = {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-};
-
-const StatCard: React.FC<StatCardProps> = ({ icon, label, value }) => (
-  <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm flex items-center gap-3">
-    <div className="text-xl text-sky-600">{icon}</div>
-    <div>
-      <div className="text-xs text-slate-500 uppercase">{label}</div>
-      <div className="text-2xl font-semibold">{value}</div>
-    </div>
-  </div>
 );
