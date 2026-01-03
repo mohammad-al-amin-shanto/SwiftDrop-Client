@@ -10,6 +10,7 @@ import ParcelTable from "../../components/parcels/ParcelTable";
 import { useParcelsStatsQuery } from "../../api/parcelsApi";
 import ShipmentsBarChart from "../../components/charts/ShipmentsBarChart";
 import StatusPieChart from "../../components/charts/StatusPieChart";
+import { DashboardTour } from "./../../components/ui/DashboardTour";
 
 const AdminDashboard: React.FC = () => {
   const { data: stats, isLoading } = useParcelsStatsQuery();
@@ -28,7 +29,10 @@ const AdminDashboard: React.FC = () => {
     <div className="px-3 sm:px-4 md:px-6 py-4 md:py-6">
       <div className="w-full max-w-6xl mx-auto space-y-6 md:space-y-8">
         {/* HEADER */}
-        <section className="bg-white dark:bg-slate-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+        <section
+          data-driver-id="hero"
+          className="bg-white dark:bg-slate-800 p-4 sm:p-5 md:p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+        >
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1 sm:space-y-2 text-center md:text-left">
               <div className="flex items-center gap-2">
@@ -76,7 +80,10 @@ const AdminDashboard: React.FC = () => {
         </section>
 
         {/* STATS CARDS */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <section
+          data-driver-id="stats"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4"
+        >
           {/* Total Parcels */}
           <div className="shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3.5 sm:p-4 rounded-xl hover:shadow-md transition flex items-center gap-3 sm:gap-4">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 shrink-0">
@@ -184,7 +191,10 @@ const AdminDashboard: React.FC = () => {
         </section>
 
         {/* CHARTS – STACKED ON SMALL, SIDE-BY-SIDE ON LG */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start">
+        <section
+          data-driver-id="charts"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-start"
+        >
           <div className="lg:col-span-2">
             {stats && (
               <ShipmentsBarChart
@@ -234,7 +244,10 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Users management */}
-          <div className="bg-white dark:bg-slate-800 p-3.5 sm:p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+          <div
+            data-driver-id="users-table"
+            className="bg-white dark:bg-slate-800 p-3.5 sm:p-4 md:p-5 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700"
+          >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
               <div className="space-y-1">
                 <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-50">
@@ -256,6 +269,8 @@ const AdminDashboard: React.FC = () => {
             <UsersTable />
           </div>
         </section>
+        {/* ✅ ADMIN DASHBOARD TOUR */}
+        <DashboardTour role="admin" autostart />
       </div>
     </div>
   );

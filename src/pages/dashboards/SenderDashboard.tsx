@@ -127,7 +127,10 @@ const SenderDashboard: React.FC = () => {
     <div className="px-4 py-6 bg-slate-50 dark:bg-slate-900 min-h-screen">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* HEADER */}
-        <section className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm">
+        <section
+          data-driver-id="hero"
+          className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm"
+        >
           <h1 className="text-3xl font-bold">Sender Dashboard</h1>
           <p className="text-sm text-slate-500">
             Create parcels, track deliveries, and manage shipment issues.
@@ -292,6 +295,7 @@ const SenderDashboard: React.FC = () => {
         {/* ANALYTICS */}
         <section
           ref={chartsRef}
+          data-driver-id="charts"
           className="grid grid-cols-1 lg:grid-cols-3 gap-4"
         >
           <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm">
@@ -314,6 +318,7 @@ const SenderDashboard: React.FC = () => {
         {/* CREATE */}
         <section
           ref={createRef}
+          data-driver-id="create-parcel"
           className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm"
         >
           <CreateParcelForm />
@@ -322,12 +327,13 @@ const SenderDashboard: React.FC = () => {
         {/* TABLE */}
         <section
           ref={tableRef}
+          data-driver-id="parcel-table"
           className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm"
         >
           <ParcelTable senderId={senderId} initialLimit={10} />
         </section>
-
-        <DashboardTour autostart />
+        {/* ✅ SENDER DASHBOARD TOUR */}
+        <DashboardTour role="sender" autostart />
       </div>
     </div>
   );

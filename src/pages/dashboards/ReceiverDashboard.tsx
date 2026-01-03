@@ -5,6 +5,7 @@ import ParcelTable from "../../components/parcels/ParcelTable";
 import { useListParcelsQuery } from "../../api/parcelsApi";
 import { useAppSelector } from "../../app/hooks";
 import { useGetReceiverDashboardQuery } from "../../api/dashboardApi";
+import { DashboardTour } from "./../../components/ui/DashboardTour";
 
 /* ================= TYPES ================= */
 
@@ -75,7 +76,10 @@ const ReceiverDashboard: React.FC = () => {
     <div className="px-4 py-6 bg-slate-50 dark:bg-slate-900 min-h-screen">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* ================= HEADER ================= */}
-        <section className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm">
+        <section
+          data-driver-id="hero"
+          className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm"
+        >
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
             Welcome{user?.name ? `, ${user.name}` : ""} 👋
           </h1>
@@ -85,7 +89,10 @@ const ReceiverDashboard: React.FC = () => {
         </section>
 
         {/* ================= STATS ================= */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <section
+          data-driver-id="stats"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
+        >
           <StatCard
             icon={<FaBoxOpen />}
             label="Expected Parcels"
@@ -119,7 +126,10 @@ const ReceiverDashboard: React.FC = () => {
         </section>
 
         {/* ================= RECENT ACTIVITY ================= */}
-        <section className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm">
+        <section
+          data-driver-id="parcel-table"
+          className="bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm"
+        >
           <h2 className="font-semibold mb-3">Recent Deliveries</h2>
 
           {recentDeliveries.length === 0 ? (
@@ -156,6 +166,8 @@ const ReceiverDashboard: React.FC = () => {
 
           <ParcelTable initialLimit={10} />
         </section>
+        {/* ✅ RECEIVER DASHBOARD TOUR */}
+        <DashboardTour role="receiver" autostart />
       </div>
     </div>
   );
