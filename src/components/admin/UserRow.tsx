@@ -72,7 +72,6 @@ const UserRow: React.FC<Props> = ({ user, onUpdated }) => {
     if (!canBlockUser) return;
 
     const action = isBlocked ? "Unblock" : "Block";
-    if (!confirm(`${action} user ${user.name}?`)) return;
 
     setLoading(true);
     try {
