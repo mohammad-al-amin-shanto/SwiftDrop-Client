@@ -9,6 +9,7 @@ import ParcelRow from "./ParcelRow";
 import StatusTimeline from "./StatusTimeline";
 import type { Parcel, User } from "../../types";
 import { toast } from "react-toastify";
+import Skeleton from "../common/Skeleton";
 
 /** A small flexible shape for person-like payloads we may receive */
 type PersonLike = {
@@ -437,27 +438,27 @@ export const ParcelTable: React.FC<Props> = ({
           <tbody>
             {loading ? (
               Array.from({ length: limit }).map((_, idx) => (
-                <tr key={idx} className="animate-pulse">
+                <tr key={idx} className="border-b animate-pulse">
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-24" />
+                    <Skeleton width={90} height={14} />
                   </td>
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-36" />
+                    <Skeleton width={140} height={14} />
                   </td>
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-12" />
+                    <Skeleton width={40} height={14} />
                   </td>
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-20" />
+                    <Skeleton width={80} height={14} />
                   </td>
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-16" />
+                    <Skeleton width={60} height={14} />
                   </td>
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-20" />
+                    <Skeleton width={90} height={14} />
                   </td>
                   <td className="px-3 py-4">
-                    <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-28" />
+                    <Skeleton width={120} height={14} />
                   </td>
                 </tr>
               ))
@@ -469,11 +470,11 @@ export const ParcelTable: React.FC<Props> = ({
               </tr>
             ) : empty ? (
               <tr>
-                <td
-                  colSpan={7}
-                  className="p-6 text-center text-sm text-slate-500"
-                >
-                  No parcels found.
+                <td colSpan={7} className="p-10 text-center text-slate-500">
+                  📦 No parcels match your filters
+                  <div className="text-xs mt-1">
+                    Try adjusting search or date range
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -515,9 +516,9 @@ export const ParcelTable: React.FC<Props> = ({
                 key={idx}
                 className="animate-pulse bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded p-3"
               >
-                <div className="h-4 bg-gray-200 dark:bg-slate-600 rounded w-40 mb-2" />
-                <div className="h-3 bg-gray-200 dark:bg-slate-600 rounded w-28 mb-1" />
-                <div className="h-3 bg-gray-200 dark:bg-slate-600 rounded w-32" />
+                <Skeleton width="70%" height={14} className="mb-2" />
+                <Skeleton width="50%" height={12} className="mb-1" />
+                <Skeleton width="60%" height={12} />
               </div>
             )
           )

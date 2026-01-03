@@ -3,6 +3,7 @@ import { useListUsersQuery } from "../../api/usersApi";
 import type { User } from "../../types";
 import UserRow from "./UserRow";
 import MobileUserActions from "./MobileUserActions";
+import { Skeleton } from "./../common/Skeleton";
 
 /* ================= UTILITIES ================= */
 
@@ -161,9 +162,24 @@ const UsersTable: React.FC = () => {
             <tbody>
               {loading ? (
                 Array.from({ length: limit }).map((_, i) => (
-                  <tr key={i} className="animate-pulse border-t">
-                    <td colSpan={6} className="px-3 py-3">
-                      <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded" />
+                  <tr key={i} className="border-t animate-pulse">
+                    <td className="px-3 py-3">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="px-3 py-3">
+                      <Skeleton className="h-4 w-28" />
+                    </td>
+                    <td className="px-3 py-3">
+                      <Skeleton className="h-4 w-full" />
+                    </td>
+                    <td className="px-3 py-3">
+                      <Skeleton className="h-4 w-16" />
+                    </td>
+                    <td className="px-3 py-3">
+                      <Skeleton className="h-4 w-16" />
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <Skeleton className="h-4 w-24 ml-auto" />
                     </td>
                   </tr>
                 ))
@@ -175,8 +191,11 @@ const UsersTable: React.FC = () => {
                 </tr>
               ) : empty ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-slate-500">
-                    No users found.
+                  <td colSpan={6} className="p-10 text-center text-slate-500">
+                    👤 No users match your filters
+                    <div className="text-xs mt-1">
+                      Try changing role or status filters
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -191,54 +210,78 @@ const UsersTable: React.FC = () => {
 
       {/* ================= MOBILE CARDS ================= */}
       <div className="md:hidden space-y-3">
-        {users.map((user) => {
-          const ext = user as UserWithFlags;
-          const isBlocked =
-            typeof ext.isBlocked === "boolean"
-              ? ext.isBlocked
-              : ext.blocked ?? false;
-
-          return (
-            <article
-              key={user._id}
-              className="w-full max-w-full overflow-hidden border rounded-lg p-3 bg-white dark:bg-slate-900 space-y-3"
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="border rounded-lg p-3 bg-white dark:bg-slate-900 animate-pulse"
             >
-              {/* Header */}
-              <div>
-                <div className="font-semibold truncate">
-                  {user.name || "Unnamed user"}
-                </div>
-                <div className="text-xs text-slate-500 wrap-break-word overflow-hidden text-ellipsis">
-                  {user.email}
-                </div>
+              <Skeleton width="60%" height={14} className="mb-2" />
+              <Skeleton width="80%" height={12} className="mb-3" />
+              <div className="flex justify-between">
+                <Skeleton width={60} height={12} />
+                <Skeleton width={60} height={12} />
               </div>
+            </div>
+          ))
+        ) : empty ? (
+          <div className="p-6 text-center text-slate-500 space-y-1">
+            <div className="text-lg">👤</div>
+            <div className="font-medium"> No users match your filters</div>
+            <div className="text-xs text-slate-400">
+              Try changing role or status filters
+            </div>
+          </div>
+        ) : (
+          users.map((user) => {
+            const ext = user as UserWithFlags;
+            const isBlocked =
+              typeof ext.isBlocked === "boolean"
+                ? ext.isBlocked
+                : ext.blocked ?? false;
 
-              {/* Meta */}
-              <div className="flex items-center justify-between min-w-0 gap-2">
-                <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 capitalize shrink-0">
-                  {user.role}
-                </span>
+            return (
+              <article
+                key={user._id}
+                className="w-full max-w-full overflow-hidden border rounded-lg p-3 bg-white dark:bg-slate-900 space-y-3"
+              >
+                {/* Header */}
+                <div>
+                  <div className="font-semibold truncate">
+                    {user.name || "Unnamed user"}
+                  </div>
+                  <div className="text-xs text-slate-500 break-all">
+                    {user.email}
+                  </div>
+                </div>
 
-                <span
-                  className={`text-xs px-2 py-0.5 rounded ${
-                    isBlocked
-                      ? "bg-rose-100 text-rose-700"
-                      : "bg-emerald-100 text-emerald-700"
-                  }`}
-                >
-                  {isBlocked ? "Blocked" : "Active"}
-                </span>
-              </div>
+                {/* Meta */}
+                <div className="flex items-center justify-between min-w-0 gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 capitalize shrink-0">
+                    {user.role}
+                  </span>
 
-              {/* Mobile admin actions */}
-              <MobileUserActions
-                user={user}
-                isBlocked={isBlocked}
-                onUpdated={refetch}
-              />
-            </article>
-          );
-        })}
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded ${
+                      isBlocked
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    {isBlocked ? "Blocked" : "Active"}
+                  </span>
+                </div>
+
+                {/* Mobile admin actions */}
+                <MobileUserActions
+                  user={user}
+                  isBlocked={isBlocked}
+                  onUpdated={refetch}
+                />
+              </article>
+            );
+          })
+        )}
       </div>
 
       {/* ================= PAGINATION ================= */}
